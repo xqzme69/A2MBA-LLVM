@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "A²MBA-LLVM"
+abstract: >-
+  An independent LLVM 21 implementation of A²MBA architectural and
+  anti-generalization hardening techniques.
+authors:
+  - name: "A²MBA-LLVM contributors"
+version: 0.1.0
+license: MIT
+references:
+  - type: article
+    title: "Unifying mixed boolean-arithmetic obfuscation by architectural and anti-generalization hardening"
+    authors:
+      - family-names: Wei
+        given-names: Haoming
+      - family-names: Liu
+        given-names: Tengyue
+      - family-names: Wang
+        given-names: Siyi
+      - family-names: Hu
+        given-names: Chuanping
+    journal: "Computers & Security"
+    volume: "167"
+    year: 2026
+    start: "104866"
+    doi: "10.1016/j.cose.2026.104866"

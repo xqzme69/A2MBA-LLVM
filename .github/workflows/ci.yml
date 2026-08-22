@@ -1,0 +1,311 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.name }} / LLVM 21.1.8
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86-64
+            os: ubuntu-24.04
+            timeout_minutes: 15
+            archive: LLVM-21.1.8-Linux-X64.tar.xz
+            url: https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/LLVM-21.1.8-Linux-X64.tar.xz
+            sha256: b3b7f2801d15d50736acea3c73982994d025b01c2f035b91ae3b49d1b575732b
+            executable_suffix: ""
+          - name: Windows x86-64
+            os: windows-2022
+            timeout_minutes: 90
+            archive: clang+llvm-21.1.8-x86_64-pc-windows-msvc.tar.xz
+            url: https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/clang%2Bllvm-21.1.8-x86_64-pc-windows-msvc.tar.xz
+            sha256: 749d22f565fcd5718dbed06512572d0e5353b502c03fe1f7f17ee8b8aca21a47
+            executable_suffix: .exe
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+
+      - name: Download and verify LLVM archive
+        shell: pwsh
+        run: |
+          $ProgressPreference = "SilentlyContinue"
+          $archive = Join-Path $env:RUNNER_TEMP "${{ matrix.archive }}"
+
+          $curl = if ($IsWindows) { "curl.exe" } else { "curl" }
+          & $curl --fail --location --show-error `
+            --retry 5 --retry-all-errors --retry-delay 2 `
+            --connect-timeout 30 --speed-limit 1024 --speed-time 60 `
+            --output $archive "${{ matrix.url }}"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to download ${{ matrix.archive }}"
+          }
+
+          $actualHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne "${{ matrix.sha256 }}") {
+            throw "LLVM archive SHA-256 mismatch: expected ${{ matrix.sha256 }}, got $actualHash"
+          }
+
+      - name: Extract and verify LLVM
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "${{ matrix.archive }}"
+          $llvmRoot = Join-Path $env:RUNNER_TEMP "a2mba-llvm-21.1.8"
+
+          New-Item -ItemType Directory -Path $llvmRoot -Force | Out-Null
+          if ($IsWindows) {
+            $sevenZip = (Get-Command 7z.exe -ErrorAction Stop).Source
+            & $sevenZip t $archive -bd
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to test $archive"
+            }
+
+            & $sevenZip x $archive -so -bd |
+              & $sevenZip x -si -ttar "-o$llvmRoot" -y -bd
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to extract $archive"
+            }
+            $llvmRoot = Join-Path $llvmRoot "clang+llvm-21.1.8-x86_64-pc-windows-msvc"
+          } else {
+            tar -xf $archive -C $llvmRoot --strip-components=1
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to extract $archive"
+            }
+          }
+          Remove-Item -LiteralPath $archive -Force
+
+          $llvmConfig = Join-Path $llvmRoot "lib/cmake/llvm/LLVMConfig.cmake"
+          if (-not (Test-Path -LiteralPath $llvmConfig)) {
+            throw "The LLVM archive does not contain LLVMConfig.cmake"
+          }
+
+          $requiredTools = @("clang", "opt", "llc")
+          if ($IsLinux) {
+            $requiredTools += @("clang++", "ld.lld")
+          }
+          foreach ($tool in $requiredTools) {
+            $toolPath = Join-Path $llvmRoot "bin/$tool${{ matrix.executable_suffix }}"
+            if (-not (Test-Path -LiteralPath $toolPath)) {
+              throw "The LLVM archive does not contain $toolPath"
+            }
+          }
+          $env:PATH = (Join-Path $llvmRoot "bin") + [IO.Path]::PathSeparator + $env:PATH
+
+          $clang = Join-Path $llvmRoot "bin/clang${{ matrix.executable_suffix }}"
+          $clangVersion = (& $clang --version | Select-Object -First 1)
+          if ($clangVersion -notmatch "clang version 21\.1\.8") {
+            throw "Expected Clang 21.1.8, got: $clangVersion"
+          }
+
+          if ($IsLinux) {
+            $llvmLibraryPath = Join-Path $llvmRoot "lib"
+            if ($env:LD_LIBRARY_PATH) {
+              $llvmLibraryPath += ":$env:LD_LIBRARY_PATH"
+            }
+            $env:LD_LIBRARY_PATH = $llvmLibraryPath
+          }
+
+          "LLVM_ROOT=$llvmRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "LLVM_DIR=$(Join-Path $llvmRoot 'lib/cmake/llvm')" |
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Join-Path $llvmRoot "bin") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          if ($IsLinux) {
+            "LD_LIBRARY_PATH=$env:LD_LIBRARY_PATH" |
+              Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
+
+      - name: Build and verify FileCheck
+        shell: pwsh
+        run: |
+          $fileCheckSource = Join-Path $env:RUNNER_TEMP "a2mba-filecheck-source"
+          $fileCheckBuild = Join-Path $env:RUNNER_TEMP "a2mba-filecheck-build"
+          New-Item -ItemType Directory -Path $fileCheckSource -Force | Out-Null
+
+          $fileCheckCpp = Join-Path $fileCheckSource "FileCheck.cpp"
+          $curl = if ($IsWindows) { "curl.exe" } else { "curl" }
+          & $curl --fail --location --show-error `
+            --retry 5 --retry-all-errors --retry-delay 2 `
+            --connect-timeout 30 `
+            --output $fileCheckCpp `
+            "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-21.1.8/llvm/utils/FileCheck/FileCheck.cpp"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to download FileCheck.cpp"
+          }
+
+          $fileCheckHash = (Get-FileHash -LiteralPath $fileCheckCpp -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($fileCheckHash -ne "7a0d8a2989d497b679efdc93244300ba4c7cad531ba90ba82c0af106cf864466") {
+            throw "FileCheck.cpp SHA-256 mismatch: got $fileCheckHash"
+          }
+
+          @'
+          cmake_minimum_required(VERSION 3.24)
+          project(A2MBAFileCheck LANGUAGES CXX)
+
+          set(CMAKE_CXX_STANDARD 20)
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          set(CMAKE_CXX_EXTENSIONS OFF)
+
+          find_package(LLVM REQUIRED CONFIG)
+          if(NOT LLVM_PACKAGE_VERSION VERSION_EQUAL "21.1.8")
+            message(FATAL_ERROR "FileCheck requires LLVM 21.1.8")
+          endif()
+
+          if(WIN32 AND TARGET LLVMDebugInfoPDB)
+            get_target_property(FILECHECK_PDB_LIBS
+              LLVMDebugInfoPDB INTERFACE_LINK_LIBRARIES
+            )
+            set(FILECHECK_PDB_LIBS_FIXED)
+            foreach(filecheck_pdb_lib IN LISTS FILECHECK_PDB_LIBS)
+              if(filecheck_pdb_lib MATCHES "diaguids\\.lib$" AND
+                 NOT EXISTS "${filecheck_pdb_lib}")
+                find_library(FILECHECK_DIAGUIDS_LIBRARY
+                  NAMES diaguids
+                  HINTS "${CMAKE_GENERATOR_INSTANCE}/DIA SDK/lib/amd64"
+                )
+                if(NOT FILECHECK_DIAGUIDS_LIBRARY)
+                  message(FATAL_ERROR "Could not find the x64 DIA SDK library")
+                endif()
+                list(APPEND FILECHECK_PDB_LIBS_FIXED
+                  "${FILECHECK_DIAGUIDS_LIBRARY}"
+                )
+              else()
+                list(APPEND FILECHECK_PDB_LIBS_FIXED "${filecheck_pdb_lib}")
+              endif()
+            endforeach()
+            set_property(TARGET LLVMDebugInfoPDB PROPERTY
+              INTERFACE_LINK_LIBRARIES "${FILECHECK_PDB_LIBS_FIXED}"
+            )
+          endif()
+
+          list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+          include(AddLLVM)
+
+          add_executable(FileCheck FileCheck.cpp)
+          llvm_update_compile_flags(FileCheck)
+          target_include_directories(FileCheck SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+          llvm_map_components_to_libnames(FILECHECK_LLVM_LIBS
+            FileCheck
+            Support
+            Demangle
+          )
+          target_link_libraries(FileCheck PRIVATE ${FILECHECK_LLVM_LIBS})
+          set_target_properties(FileCheck PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+            RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin"
+          )
+          '@ | Set-Content -LiteralPath (Join-Path $fileCheckSource "CMakeLists.txt") -Encoding utf8
+
+          if ($IsWindows) {
+            cmake -S $fileCheckSource -B $fileCheckBuild `
+              -G "Visual Studio 17 2022" -A x64 `
+              "-DLLVM_DIR=$env:LLVM_DIR"
+          } else {
+            cmake -S $fileCheckSource -B $fileCheckBuild -G Ninja `
+              "-DLLVM_DIR=$env:LLVM_DIR" `
+              -DCMAKE_BUILD_TYPE=Release `
+              "-DCMAKE_CXX_COMPILER=$env:LLVM_ROOT/bin/clang++" `
+              "-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld"
+          }
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to configure FileCheck"
+          }
+          cmake --build $fileCheckBuild --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to build FileCheck"
+          }
+          $fileCheck = Join-Path $fileCheckBuild "bin/FileCheck${{ matrix.executable_suffix }}"
+
+          if (-not (Test-Path -LiteralPath $fileCheck)) {
+            throw "FileCheck was not found at $fileCheck"
+          }
+          $fileCheckVersion = (& $fileCheck --version) -join "`n"
+          if ($fileCheckVersion -notmatch "LLVM version 21\.1\.8") {
+            throw "Expected FileCheck 21.1.8, got: $fileCheckVersion"
+          }
+
+          "A2MBA_FILECHECK=$fileCheck" |
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install test runner
+        run: python -m pip install --disable-pip-version-check -r requirements-test.txt
+
+      - name: Configure Linux
+        if: runner.os == 'Linux'
+        shell: pwsh
+        run: >-
+          cmake -S . -B build -G Ninja
+          "-DLLVM_DIR=$env:LLVM_DIR"
+          -DCMAKE_BUILD_TYPE=Release
+          "-DCMAKE_CXX_COMPILER=$env:LLVM_ROOT/bin/clang++"
+          "-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld"
+          "-DCMAKE_MODULE_LINKER_FLAGS=-fuse-ld=lld"
+          "-DCMAKE_SHARED_LINKER_FLAGS=-fuse-ld=lld"
+          "-DA2MBA_FILECHECK_EXECUTABLE=$env:A2MBA_FILECHECK"
+          -DA2MBA_BUILD_TESTS=ON
+
+      - name: Configure Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          "-DLLVM_DIR=$env:LLVM_DIR"
+          "-DA2MBA_FILECHECK_EXECUTABLE=$env:A2MBA_FILECHECK"
+          -DA2MBA_BUILD_TESTS=ON
+
+      - name: Build and run lit tests
+        run: cmake --build build --config Release --target check-a2mba --parallel 2
+
+      - name: Install package
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:GITHUB_WORKSPACE "package"
+          cmake --install build --config Release --prefix $package
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to install A2MBA"
+          }
+
+      - name: Verify installed package
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:GITHUB_WORKSPACE "package"
+          $clang = Join-Path $env:LLVM_ROOT "bin/clang${{ matrix.executable_suffix }}"
+          if ($IsWindows) {
+            $wrapper = Join-Path $package "bin/a2mba-clang.py"
+            $plugin = Join-Path $package "lib/a2mba/A2MBA.dll"
+            python $wrapper --doctor --clang $clang --plugin $plugin
+          } else {
+            $wrapper = Join-Path $package "bin/a2mba-clang"
+            $plugin = Join-Path $package "lib/a2mba/A2MBA.so"
+            & $wrapper --doctor --clang $clang --plugin $plugin
+          }
+          if ($LASTEXITCODE -ne 0) {
+            throw "The installed A2MBA package failed its load test"
+          }
+
+      - name: Upload package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: A2MBA-${{ runner.os }}-LLVM-21.1.8
+          path: package/
+          if-no-files-found: error

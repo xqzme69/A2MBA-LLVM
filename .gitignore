@@ -1,0 +1,35 @@
+# CMake build trees
+/build*/
+/cmake-build-*/
+/\.cmake-probe/
+/out/
+/package/
+CMakeUserPresets.json
+compile_commands.json
+
+# Editors and generated files
+/.vs/
+/.vscode/
+/.idea/
+*.user
+*.suo
+*.swp
+*~
+
+# Native build products
+*.dll
+*.dylib
+*.exe
+*.exp
+*.ilk
+*.lib
+*.o
+*.obj
+*.pdb
+*.so
+
+# Python and lit
+__pycache__/
+.ruff_cache/
+*.py[cod]
+/test/Output/

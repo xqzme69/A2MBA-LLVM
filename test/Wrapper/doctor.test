@@ -1,0 +1,10 @@
+# REQUIRES: a2mba-wrapper, clang
+# RUN: %a2mba_wrapper --doctor 2>&1 | %FileCheck %s
+
+# CHECK: A2MBA doctor
+# CHECK: clang: {{.+}}
+# CHECK: version: {{[0-9]+\.[0-9]+\.[0-9]+}}
+# CHECK: target: {{.+}}
+# CHECK: plugin: {{.+}}
+# CHECK: plugin load: ok
+# CHECK: compatible: yes

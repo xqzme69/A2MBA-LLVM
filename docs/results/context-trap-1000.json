@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "date": "2026-08-22",
+  "project": "A²MBA-LLVM",
+  "llvm_version": "21.1.8",
+  "configuration": {
+    "mode": "verified",
+    "level": "heavy",
+    "seed_base": 2725928960,
+    "functions": "all",
+    "transform": "context-trap",
+    "probability": 100,
+    "depth": 1
+  },
+  "corpus": {
+    "expressions": 1000,
+    "bit_widths": {
+      "i32": 500,
+      "i64": 500
+    },
+    "physical_equivalence_proved": 1000,
+    "unique_parameter_sets": 566,
+    "unique_obfuscated_expressions": 878
+  },
+  "promba": {
+    "deceptive_simplification": 870,
+    "top_level_timeout": 130,
+    "correct_simplification": 0,
+    "dsr_eligible_expressions": 870,
+    "deception_success_rate": 1.0,
+    "top_level_timeout_rate": 0.13,
+    "by_variant": {
+      "add-sub-or": {
+        "deceptive_simplification": 128,
+        "top_level_timeout": 22
+      },
+      "or-xor": {
+        "deceptive_simplification": 135,
+        "top_level_timeout": 19
+      },
+      "sub-add-xor": {
+        "deceptive_simplification": 146,
+        "top_level_timeout": 18
+      },
+      "trap-delta-add": {
+        "deceptive_simplification": 151,
+        "top_level_timeout": 23
+      },
+      "trigger-cancel-or": {
+        "deceptive_simplification": 170,
+        "top_level_timeout": 17
+      },
+      "xor-chain-add": {
+        "deceptive_simplification": 140,
+        "top_level_timeout": 31
+      }
+    }
+  },
+  "cobra": {
+    "deceptive_simplification": 690,
+    "unsupported": 305,
+    "unknown": 5,
+    "crash": 0
+  },
+  "gamba": {
+    "analyzed": 0,
+    "parser_unsupported": 1000,
+    "included_in_resilience_claims": false
+  },
+  "formal_parameter_space": {
+    "parameter_sets": 6024,
+    "physical_identities_proved": 6024,
+    "logical_models_with_counterexample": 6024,
+    "failures": 0
+  },
+  "artifact_sha256": {
+    "plugin": "5cea51dd5651673eec713852abac09e4f7b6026d8220b303dbfd860a9b8c7577",
+    "promba": "90c6379de34aaa194995306b83cfad3e4accedfcafed9a8124c332da06fcabb3",
+    "sygus_bridge": "3dc16601168440b88da9d72d001fc77028339124b9be639c3ad0c52ac1e4a729",
+    "smt_input": "852077bd0cde4178be27b1fc41861933f74566d9b79550122cf2be1a05dab17d"
+  },
+  "report_sha256": {
+    "promba": "f4c21b43e58c3d96f1b96940e42d91401678e90679552ad5394dcc5c58cedd7c",
+    "cobra": "5da763707c6ec70f626138d0e94a38b9ac7528b708f2dc5b8b3a1e39a0179d82",
+    "gamba_i32": "48658589e4bf3a67a6bf014aed80c1aacfe9e11662dbfeda434b969a207338b6",
+    "gamba_i64": "ac80f35198bacb279132b76e02503379b7955800949ab71c90f827da4f3dbfe6"
+  }
+}

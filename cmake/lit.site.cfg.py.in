@@ -1,0 +1,21 @@
+@LIT_SITE_CFG_IN_HEADER@
+
+import os
+
+config.a2mba_source_dir = r"@A2MBA_TEST_SOURCE_DIR@"
+config.a2mba_binary_dir = r"@A2MBA_TEST_BINARY_DIR@"
+config.llvm_tools_dir = r"@LLVM_TOOLS_BINARY_DIR@"
+config.python_executable = r"@Python3_EXECUTABLE@"
+config.a2mba_wrapper = r"@A2MBA_WRAPPER_PATH@"
+config.a2mba_filecheck = r"@A2MBA_FILECHECK_EXECUTABLE@"
+config.targets_to_build = "@TARGETS_TO_BUILD@".split()
+config.a2mba_host_triple = "@A2MBA_HOST_TRIPLE@"
+config.is_cross_compiling = "@CMAKE_CROSSCOMPILING@" == "TRUE"
+config.a2mba_static_llvm_fallback = "@A2MBA_STATIC_LLVM_FALLBACK@" == "ON"
+
+config.a2mba_plugin = lit_config.params.get("a2mba_plugin", "")
+config.a2mba_selftest = lit_config.params.get("a2mba_selftest", "")
+
+lit_config.load_config(
+    config, os.path.join(config.a2mba_source_dir, "lit.cfg.py")
+)

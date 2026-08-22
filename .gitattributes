@@ -1,0 +1,22 @@
+* text=auto
+
+*.c text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.ll text eol=lf
+*.py text eol=lf
+*.cmake text eol=lf
+*.in text eol=lf
+*.test text eol=lf
+CMakeLists.txt text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.cff text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.png binary
+
+.clang-format text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+LICENSE text eol=lf
