@@ -15,6 +15,7 @@ enum class SkipReason {
   UnsupportedType,
   PoisonGeneratingFlags,
   UnsupportedTransform,
+  HybridPlanningFailure,
   Probability,
   Count,
 };

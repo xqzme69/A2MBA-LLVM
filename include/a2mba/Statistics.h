@@ -24,6 +24,8 @@ struct Statistics {
   std::uint64_t adcTransforms = 0;
   std::uint64_t sbbTransforms = 0;
   std::uint64_t paperRotates = 0;
+  std::uint64_t hybridIRTransforms = 0;
+  std::uint64_t hybridNativeTransforms = 0;
 
   void recordSkip(SkipReason reason);
   void print(llvm::raw_ostream &output) const;

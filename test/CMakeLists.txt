@@ -24,6 +24,20 @@ endif()
 
 a2mba_enable_sanitizers(a2mba-selftest)
 
+add_executable(a2mba-hybrid-selftest
+  "${PROJECT_SOURCE_DIR}/unittests/HybridCore/core_tests.cpp"
+)
+target_compile_features(a2mba-hybrid-selftest PRIVATE cxx_std_20)
+target_include_directories(a2mba-hybrid-selftest
+  PRIVATE "${PROJECT_SOURCE_DIR}/lib/HybridCore"
+)
+target_link_libraries(a2mba-hybrid-selftest PRIVATE A2MBAHybridCore)
+a2mba_enable_sanitizers(a2mba-hybrid-selftest)
+
+set(A2MBA_HYBRID_BAD_RULE_TEST
+  "${PROJECT_SOURCE_DIR}/unittests/HybridCore/reject_bad_rule.py"
+)
+
 set(A2MBA_TEST_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(A2MBA_TEST_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 set(A2MBA_WRAPPER_PATH "${PROJECT_SOURCE_DIR}/tools/a2mba-clang.py")
@@ -85,8 +99,10 @@ set(A2MBA_LIT_ARGS
 )
 
 add_custom_target(check-a2mba
+  COMMAND $<TARGET_FILE:a2mba-hybrid-selftest>
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_HYBRID_BAD_RULE_TEST}"
   COMMAND ${A2MBA_LIT_COMMAND} ${A2MBA_LIT_ARGS}
-  DEPENDS A2MBA a2mba-selftest
+  DEPENDS A2MBA a2mba-selftest a2mba-hybrid-selftest
   COMMENT "Running A2MBA lit tests"
   USES_TERMINAL
   VERBATIM
@@ -96,4 +112,10 @@ add_test(
   NAME a2mba-lit
   COMMAND ${A2MBA_LIT_COMMAND} ${A2MBA_LIT_ARGS}
   COMMAND_EXPAND_LISTS
+)
+
+add_test(NAME a2mba-hybrid-core COMMAND a2mba-hybrid-selftest)
+add_test(
+  NAME a2mba-hybrid-bad-rule
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_HYBRID_BAD_RULE_TEST}"
 )

@@ -27,7 +27,9 @@ void Statistics::print(llvm::raw_ostream &output) const {
          << "  context trap: " << contextTraps << '\n'
          << "  ADC: " << adcTransforms << '\n'
          << "  SBB: " << sbbTransforms << '\n'
-         << "  paper RCR/RCL: " << paperRotates << "\n\n"
+         << "  paper RCR/RCL: " << paperRotates << '\n'
+         << "  hybrid IR: " << hybridIRTransforms << '\n'
+         << "  hybrid native: " << hybridNativeTransforms << "\n\n"
          << "skipped:\n";
 
   for (unsigned index = 1; index < skipped.size(); ++index) {

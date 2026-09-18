@@ -1,0 +1,677 @@
+{
+  "schema": 1,
+  "widths": [
+    8,
+    16,
+    32,
+    64
+  ],
+  "rules": [
+    {
+      "name": "swap_add",
+      "lhs": [
+        "add",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "add",
+        "$y",
+        "$x"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "reassociate_add",
+      "lhs": [
+        "add",
+        "$x",
+        [
+          "add",
+          "$y",
+          "$z"
+        ]
+      ],
+      "rhs": [
+        "add",
+        [
+          "add",
+          "$x",
+          "$y"
+        ],
+        "$z"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "swap_mul",
+      "lhs": [
+        "mul",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "mul",
+        "$y",
+        "$x"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "reassociate_mul",
+      "lhs": [
+        "mul",
+        "$x",
+        [
+          "mul",
+          "$y",
+          "$z"
+        ]
+      ],
+      "rhs": [
+        "mul",
+        [
+          "mul",
+          "$x",
+          "$y"
+        ],
+        "$z"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "swap_and",
+      "lhs": [
+        "and",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "and",
+        "$y",
+        "$x"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "reassociate_and",
+      "lhs": [
+        "and",
+        "$x",
+        [
+          "and",
+          "$y",
+          "$z"
+        ]
+      ],
+      "rhs": [
+        "and",
+        [
+          "and",
+          "$x",
+          "$y"
+        ],
+        "$z"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "swap_or",
+      "lhs": [
+        "or",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "or",
+        "$y",
+        "$x"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "reassociate_or",
+      "lhs": [
+        "or",
+        "$x",
+        [
+          "or",
+          "$y",
+          "$z"
+        ]
+      ],
+      "rhs": [
+        "or",
+        [
+          "or",
+          "$x",
+          "$y"
+        ],
+        "$z"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "swap_xor",
+      "lhs": [
+        "xor",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "xor",
+        "$y",
+        "$x"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "reassociate_xor",
+      "lhs": [
+        "xor",
+        "$x",
+        [
+          "xor",
+          "$y",
+          "$z"
+        ]
+      ],
+      "rhs": [
+        "xor",
+        [
+          "xor",
+          "$x",
+          "$y"
+        ],
+        "$z"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "sum_xor_carry",
+      "lhs": [
+        "add",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "add",
+        [
+          "xor",
+          "$x",
+          "$y"
+        ],
+        [
+          "mul",
+          2,
+          [
+            "and",
+            "$x",
+            "$y"
+          ]
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "sum_and_or",
+      "lhs": [
+        "add",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "add",
+        [
+          "and",
+          "$x",
+          "$y"
+        ],
+        [
+          "or",
+          "$x",
+          "$y"
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "sum_or_xor",
+      "lhs": [
+        "add",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "sub",
+        [
+          "mul",
+          2,
+          [
+            "or",
+            "$x",
+            "$y"
+          ]
+        ],
+        [
+          "xor",
+          "$x",
+          "$y"
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "difference_neg",
+      "lhs": [
+        "sub",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "add",
+        "$x",
+        [
+          "neg",
+          "$y"
+        ]
+      ],
+      "negation_family": true
+    },
+    {
+      "name": "sum_neg",
+      "lhs": [
+        "add",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "sub",
+        "$x",
+        [
+          "neg",
+          "$y"
+        ]
+      ],
+      "negation_family": true
+    },
+    {
+      "name": "xor_difference",
+      "lhs": [
+        "xor",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "sub",
+        [
+          "or",
+          "$x",
+          "$y"
+        ],
+        [
+          "and",
+          "$x",
+          "$y"
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "xor_sum",
+      "lhs": [
+        "xor",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "sub",
+        [
+          "add",
+          "$x",
+          "$y"
+        ],
+        [
+          "mul",
+          2,
+          [
+            "and",
+            "$x",
+            "$y"
+          ]
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "and_sum",
+      "lhs": [
+        "and",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "sub",
+        [
+          "add",
+          "$x",
+          "$y"
+        ],
+        [
+          "or",
+          "$x",
+          "$y"
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "or_sum",
+      "lhs": [
+        "or",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "sub",
+        [
+          "add",
+          "$x",
+          "$y"
+        ],
+        [
+          "and",
+          "$x",
+          "$y"
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "complement_and",
+      "lhs": [
+        "not",
+        [
+          "and",
+          "$x",
+          "$y"
+        ]
+      ],
+      "rhs": [
+        "or",
+        [
+          "not",
+          "$x"
+        ],
+        [
+          "not",
+          "$y"
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "complement_or",
+      "lhs": [
+        "not",
+        [
+          "or",
+          "$x",
+          "$y"
+        ]
+      ],
+      "rhs": [
+        "and",
+        [
+          "not",
+          "$x"
+        ],
+        [
+          "not",
+          "$y"
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "complement_sum",
+      "lhs": [
+        "not",
+        [
+          "add",
+          "$x",
+          "$y"
+        ]
+      ],
+      "rhs": [
+        "add",
+        [
+          "not",
+          "$x"
+        ],
+        [
+          "add",
+          [
+            "not",
+            "$y"
+          ],
+          1
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "negative_complement",
+      "lhs": [
+        "neg",
+        "$x"
+      ],
+      "rhs": [
+        "add",
+        [
+          "not",
+          "$x"
+        ],
+        1
+      ],
+      "negation_family": true
+    },
+    {
+      "name": "complement_negative",
+      "lhs": [
+        "not",
+        "$x"
+      ],
+      "rhs": [
+        "sub",
+        [
+          "neg",
+          "$x"
+        ],
+        1
+      ],
+      "negation_family": true
+    },
+    {
+      "name": "negative_sum",
+      "lhs": [
+        "neg",
+        [
+          "add",
+          "$x",
+          "$y"
+        ]
+      ],
+      "rhs": [
+        "add",
+        [
+          "neg",
+          "$x"
+        ],
+        [
+          "neg",
+          "$y"
+        ]
+      ],
+      "negation_family": true
+    },
+    {
+      "name": "negative_product",
+      "lhs": [
+        "neg",
+        [
+          "mul",
+          "$x",
+          "$y"
+        ]
+      ],
+      "rhs": [
+        "mul",
+        [
+          "neg",
+          "$x"
+        ],
+        "$y"
+      ],
+      "negation_family": true
+    },
+    {
+      "name": "product_negative",
+      "lhs": [
+        "mul",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "neg",
+        [
+          "mul",
+          [
+            "neg",
+            "$x"
+          ],
+          "$y"
+        ]
+      ],
+      "negation_family": true
+    },
+    {
+      "name": "distribute_product",
+      "lhs": [
+        "mul",
+        "$x",
+        [
+          "add",
+          "$y",
+          "$z"
+        ]
+      ],
+      "rhs": [
+        "add",
+        [
+          "mul",
+          "$x",
+          "$y"
+        ],
+        [
+          "mul",
+          "$x",
+          "$z"
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "double_sum",
+      "lhs": [
+        "mul",
+        2,
+        "$x"
+      ],
+      "rhs": [
+        "add",
+        "$x",
+        "$x"
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "sub_xor_carry",
+      "lhs": [
+        "sub",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "add",
+        [
+          "xor",
+          "$x",
+          [
+            "neg",
+            "$y"
+          ]
+        ],
+        [
+          "mul",
+          2,
+          [
+            "and",
+            "$x",
+            [
+              "neg",
+              "$y"
+            ]
+          ]
+        ]
+      ],
+      "negation_family": true
+    },
+    {
+      "name": "and_complement",
+      "lhs": [
+        "and",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "not",
+        [
+          "or",
+          [
+            "not",
+            "$x"
+          ],
+          [
+            "not",
+            "$y"
+          ]
+        ]
+      ],
+      "negation_family": false
+    },
+    {
+      "name": "or_complement",
+      "lhs": [
+        "or",
+        "$x",
+        "$y"
+      ],
+      "rhs": [
+        "not",
+        [
+          "and",
+          [
+            "not",
+            "$x"
+          ],
+          [
+            "not",
+            "$y"
+          ]
+        ]
+      ],
+      "negation_family": false
+    }
+  ]
+}

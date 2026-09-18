@@ -73,6 +73,12 @@ The pass snapshots source candidates before rewriting. New instructions receive 
 
 All uses of the original candidate are redirected to the completed replacement before the original instruction is erased. LLVM's verifier is run by the IR test pipeline to catch malformed types, dominance, and use lists.
 
+## Hybrid rule admission
+
+`lib/HybridCore/mba.json` is the only source for the hybrid rewrite table. During every build, Z3 must prove the negation of each rule unsatisfiable at 8, 16, 32, and 64 bits before C++ is generated. SAT, UNKNOWN, timeout, a solver failure, or an unbound metavariable stops the build.
+
+That gate proves the listed bit-vector identities, not the e-graph, extractor, LLVM adapter, or x86 lowerer. Separate core tests cover graph invariants, cyclic classes, deterministic extraction, native budgets, and differential evaluation. Lit tests cover LLVM IR emission, native code generation, runtime equivalence, configuration failures, and counters through the integrated plugin.
+
 ## Determinism
 
 With an explicit seed, transform choices and constants are deterministic for the same:
@@ -93,6 +99,7 @@ The repository organizes gates by claim:
 | Layer | What it checks |
 | --- | --- |
 | native self-test | modular inverse and deterministic random stream properties |
+| hybrid core self-test | e-graph invariants, bounded extraction, native lowering, and differential evaluation |
 | `test/IR` | transform shapes, widths, all Context Trap reconstructions, and poison/unsupported skips |
 | `test/Plugin` | plugin loading, explicit pipeline, annotation selection, and Clang integration |
 | `test/CodeGen` | x86 ADC/SBB lowering on Linux and Windows triples |

@@ -61,6 +61,30 @@ llvm::Expected<TransformKind> parseTransform(llvm::StringRef value) {
   return invalidValue("transform", value);
 }
 
+llvm::Expected<HybridMode> parseHybridMode(llvm::StringRef value) {
+  if (value == "off")
+    return HybridMode::Off;
+  if (value == "ir")
+    return HybridMode::PureIR;
+  if (value == "native")
+    return HybridMode::NativeRegisters;
+  return invalidValue("hybrid", value);
+}
+
+llvm::Expected<HybridLayerMode> parseHybridLayerMode(llvm::StringRef value) {
+  if (value == "none")
+    return HybridLayerMode::None;
+  if (value == "profile")
+    return HybridLayerMode::Profile;
+  if (value == "context-adc")
+    return HybridLayerMode::ContextAdc;
+  if (value == "context-sbb")
+    return HybridLayerMode::ContextSbb;
+  if (value == "context-random")
+    return HybridLayerMode::ContextRandom;
+  return invalidValue("hybrid-layers", value);
+}
+
 } // namespace
 
 llvm::Expected<Config> Config::loadFromEnvironment() {
@@ -135,6 +159,22 @@ llvm::Expected<Config> Config::loadFromEnvironment() {
       continue;
     }
 
+    if (key == "hybrid") {
+      auto hybridMode = parseHybridMode(value);
+      if (!hybridMode)
+        return hybridMode.takeError();
+      config.hybridMode = *hybridMode;
+      continue;
+    }
+
+    if (key == "hybrid-layers") {
+      auto hybridLayers = parseHybridLayerMode(value);
+      if (!hybridLayers)
+        return hybridLayers.takeError();
+      config.hybridLayers = *hybridLayers;
+      continue;
+    }
+
     if (key == "seed") {
       auto seed = parseSeed(value);
       if (!seed)
@@ -187,6 +227,28 @@ llvm::Expected<Config> Config::loadFromEnvironment() {
                                    "paper-rcr-rcl is available only with mode=paper");
   }
 
+  if (config.hybridMode != HybridMode::Off) {
+    if (config.forcedTransform == TransformKind::RuleExplosion ||
+        config.forcedTransform == TransformKind::ModularScale ||
+        config.forcedTransform == TransformKind::PaperRcrRcl) {
+      return llvm::createStringError(
+          llvm::errc::invalid_argument,
+          "hybrid mode accepts only auto, context-trap, adc, or sbb as an outer layer");
+    }
+    if (config.forcedDepth && (*config.forcedDepth < 3 || *config.forcedDepth > 16)) {
+      return llvm::createStringError(llvm::errc::invalid_argument,
+                                     "hybrid depth must be between 3 and 16");
+    }
+    if (config.hybridLayers != HybridLayerMode::None &&
+        config.forcedTransform != TransformKind::Auto) {
+      return llvm::createStringError(llvm::errc::invalid_argument,
+                                     "hybrid-layers cannot be combined with an explicit transform");
+    }
+  } else if (config.hybridLayers != HybridLayerMode::None) {
+    return llvm::createStringError(llvm::errc::invalid_argument,
+                                   "hybrid-layers requires hybrid=ir or hybrid=native");
+  }
+
   return config;
 }
 
@@ -237,6 +299,34 @@ llvm::StringRef toString(ProtectionLevel level) {
     return "medium";
   case ProtectionLevel::Heavy:
     return "heavy";
+  }
+  return "unknown";
+}
+
+llvm::StringRef toString(HybridMode mode) {
+  switch (mode) {
+  case HybridMode::Off:
+    return "off";
+  case HybridMode::PureIR:
+    return "ir";
+  case HybridMode::NativeRegisters:
+    return "native";
+  }
+  return "unknown";
+}
+
+llvm::StringRef toString(HybridLayerMode mode) {
+  switch (mode) {
+  case HybridLayerMode::None:
+    return "none";
+  case HybridLayerMode::Profile:
+    return "profile";
+  case HybridLayerMode::ContextAdc:
+    return "context-adc";
+  case HybridLayerMode::ContextSbb:
+    return "context-sbb";
+  case HybridLayerMode::ContextRandom:
+    return "context-random";
   }
   return "unknown";
 }

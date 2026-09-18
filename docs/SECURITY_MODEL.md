@@ -8,6 +8,7 @@ A²MBA raises the cost of automated analysis for selected integer data-flow expr
 - parameterized modular identities that reduce reuse of constant-specific rewrite rules;
 - parameterized trap and trigger contexts that preserve the source value but punish an unsound generalized shift rule;
 - seeded or OS-random transform selection to vary protected outputs.
+- bounded equality-saturation and optional native expansion to vary the base expression before context-sensitive layers are added.
 
 The intended property is higher analysis cost, not secrecy or irreversibility.
 
@@ -63,6 +64,8 @@ A²MBA does not claim to provide:
 ## Mode choice
 
 Use `verified` outside paper-oriented experiments. It excludes the disputed RCR/RCL carry-dependence argument and keeps Context Trap as a universal bit-vector identity. `paper` adds a documented comparison transform; it is not a stronger setting.
+
+Hybrid mode is experimental and off by default. Its extraction score measures structural properties and cost, not resistance. A sound simplifier can still recover the original value, and native expansion does not turn MBA into encryption.
 
 Start with the lightest profile that meets a measured need. Heavy transformation can raise runtime and binary size enough to become a signature of its own.
 

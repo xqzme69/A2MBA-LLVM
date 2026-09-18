@@ -13,7 +13,6 @@ import tempfile
 from pathlib import Path
 from typing import Sequence
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -61,6 +60,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("light", "balanced", "medium", "heavy"),
         default="balanced",
     )
+    parser.add_argument("--hybrid", choices=("off", "ir", "native"), default="off")
+    parser.add_argument(
+        "--hybrid-layers",
+        choices=("none", "profile", "context-adc", "context-sbb", "context-random"),
+        default="none",
+    )
     parser.add_argument("--functions", default="all")
     parser.add_argument("--base-seed", type=unsigned_64, default=1)
     parser.add_argument("--variants", type=at_least_two, default=10)
@@ -99,6 +104,10 @@ def compile_variant(
         arguments.mode,
         "--level",
         arguments.level,
+        "--hybrid",
+        arguments.hybrid,
+        "--hybrid-layers",
+        arguments.hybrid_layers,
         "--seed",
         str(seed),
         "--functions",

@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -65,6 +64,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--clang", help="forwarded to a2mba-clang")
     parser.add_argument("--opt", help="forwarded to a2mba-clang")
     parser.add_argument("--plugin", help="forwarded to a2mba-clang")
+    parser.add_argument("--hybrid", choices=("off", "ir", "native"), default="off")
+    parser.add_argument(
+        "--hybrid-layers",
+        choices=("none", "profile", "context-adc", "context-sbb", "context-random"),
+        default="none",
+    )
     parser.add_argument("--skip-configure", action="store_true")
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--skip-tests", action="store_true")
@@ -78,7 +83,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def wrapper_overrides(arguments: argparse.Namespace) -> list[str]:
-    overrides: list[str] = []
+    overrides = [
+        "--hybrid",
+        arguments.hybrid,
+        "--hybrid-layers",
+        arguments.hybrid_layers,
+    ]
     if arguments.clang:
         overrides.extend(("--clang", arguments.clang))
     if arguments.opt:

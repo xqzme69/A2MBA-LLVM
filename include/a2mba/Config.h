@@ -27,6 +27,20 @@ enum class FunctionSelectionKind {
   Regex,
 };
 
+enum class HybridMode {
+  Off,
+  PureIR,
+  NativeRegisters,
+};
+
+enum class HybridLayerMode {
+  None,
+  Profile,
+  ContextAdc,
+  ContextSbb,
+  ContextRandom,
+};
+
 enum class TransformKind {
   Auto,
   RuleExplosion,
@@ -49,6 +63,8 @@ struct Config {
   ImplementationMode mode = ImplementationMode::Verified;
   ProtectionLevel level = ProtectionLevel::Balanced;
   FunctionSelectionKind functionSelection = FunctionSelectionKind::Annotated;
+  HybridMode hybridMode = HybridMode::Off;
+  HybridLayerMode hybridLayers = HybridLayerMode::None;
   TransformKind forcedTransform = TransformKind::Auto;
   std::optional<std::uint64_t> seed;
   std::optional<unsigned> forcedDepth;
@@ -64,6 +80,8 @@ struct Config {
 
 llvm::StringRef toString(ImplementationMode mode);
 llvm::StringRef toString(ProtectionLevel level);
+llvm::StringRef toString(HybridMode mode);
+llvm::StringRef toString(HybridLayerMode mode);
 llvm::StringRef toString(TransformKind transform);
 
 } // namespace a2mba

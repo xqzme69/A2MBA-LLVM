@@ -26,6 +26,15 @@
 ; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=16;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.agt5.ll
 ; RUN: %clang -O0 %t.agt5.ll -o %t.agt5.exe
 ; RUN: %t.agt5.exe
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=54;functions=regex:^candidate_.*$;hybrid=ir;transform=auto;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.hybrid-ir.ll
+; RUN: %clang -O0 %t.hybrid-ir.ll -o %t.hybrid-ir.exe
+; RUN: %t.hybrid-ir.exe
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=55;functions=regex:^candidate_.*$;hybrid=native;transform=auto;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.hybrid-native.ll
+; RUN: %clang -O0 %t.hybrid-native.ll -o %t.hybrid-native.exe
+; RUN: %t.hybrid-native.exe
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=56;functions=regex:^candidate_.*$;hybrid=ir;hybrid-layers=context-random;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.hybrid-layered.ll
+; RUN: %clang -O0 %t.hybrid-layered.ll -o %t.hybrid-layered.exe
+; RUN: %t.hybrid-layered.exe
 
 target triple = "x86_64-unknown-linux-gnu"
 

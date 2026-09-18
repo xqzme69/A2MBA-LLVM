@@ -65,6 +65,8 @@ const char *describe(SkipReason reason) {
     return "poison-generating flags";
   case SkipReason::UnsupportedTransform:
     return "unsupported transform";
+  case SkipReason::HybridPlanningFailure:
+    return "hybrid planning failure";
   case SkipReason::Probability:
     return "probability filter";
   case SkipReason::Count:

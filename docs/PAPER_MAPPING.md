@@ -17,8 +17,10 @@ This map links *Unifying Mixed Boolean-Arithmetic Obfuscation by Architectural a
 | Section 4.2, EFLAGS handling | `lib/AAMBA.cpp` | State-sensitive work is emitted atomically with explicit side effects; affected SysV functions disable the red zone. |
 | Section 4.3, CSPRNG and unique constants | `lib/Random.cpp`, `lib/Modular.cpp`, `lib/Context.cpp` | OS randomness by default, deterministic stream with `seed`, module-wide uniqueness, and `APInt` modular arithmetic. |
 | Section 5.2, differential correctness evaluation | `test/Runtime`, `scripts/validate.py` | Local gates exist; the paper's 7-program, 100-variant, 10,000-input result is not attributed to this project. |
-| Section 5.4, overhead | `scripts/benchmark.py`, `docs/BENCHMARKING.md` | Provides a local measurement procedure; no aggregate A²MBA-LLVM overhead result is published here. |
+| Section 5.4, overhead | `scripts/benchmark.py`, `scripts/baseline.py`, `docs/BENCHMARKING.md` | Provides local measurement procedures and a separate project-specific hybrid snapshot. |
 | Section 5.5, diversity | `test/Determinism`, `scripts/diversity.py` | Checks same-seed determinism and different-seed object hashes for a supplied workload. |
+
+The hybrid e-graph search and native register lowering are project extensions inspired by SaMBA and asmMBA. They are not presented as part of the A²MBA paper or as reproductions of either implementation.
 
 ## Architecture names
 
@@ -31,6 +33,6 @@ The project keeps the paper's two high-level names:
 
 ## Evaluation boundary
 
-The paper reports an LLVM 15 prototype, seven benchmark programs, deobfuscator success and deception rates, overhead factors, and 1,000 variants per benchmark. A²MBA-LLVM targets LLVM 21 and includes neither that prototype nor its complete experiment, so those results do not transfer to this implementation. The separate Context Trap snapshot in [BENCHMARKING.md](BENCHMARKING.md) uses a different corpus and scope.
+The paper reports an LLVM 15 prototype, seven benchmark programs, deobfuscator success and deception rates, overhead factors, and 1,000 variants per benchmark. A²MBA-LLVM targets LLVM 21 and includes neither that prototype nor its complete experiment, so those results do not transfer to this implementation. The Context Trap and hybrid snapshots in [BENCHMARKING.md](BENCHMARKING.md) use different corpora and scopes.
 
 [PAPER_DEVIATIONS.md](PAPER_DEVIATIONS.md) explains each deliberate difference. [BENCHMARKING.md](BENCHMARKING.md) describes the local measurement tools and their limits.

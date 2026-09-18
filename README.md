@@ -14,11 +14,11 @@ This is an independent implementation, not the authors' code or a port of their 
 
 By default, the plugin runs in `verified` mode with the `balanced` profile and touches only explicitly annotated functions. `paper` mode keeps research-oriented behavior out of that production default.
 
-The published resilience and performance figures describe the authors' LLVM 15 prototype. They are not attributed to this implementation. A separate randomized Context Trap evaluation is reported below and in [BENCHMARKING.md](docs/BENCHMARKING.md).
+The published resilience and performance figures describe the authors' LLVM 15 prototype. They are not attributed to this implementation. Project-specific Context Trap and hybrid evaluations are reported below and in [BENCHMARKING.md](docs/BENCHMARKING.md).
 
 ## Build
 
-Build requirements are CMake 3.24+, a C++20 compiler, Python 3.8+ for the wrapper and tests, and an LLVM 21 development package. Install the pinned lit runner before configuring a test build:
+Build requirements are CMake 3.24+, a C++20 compiler, Python 3.9+, Z3, and an LLVM 21 development package. The pinned Python dependencies provide lit and Z3:
 
 ```bash
 python -m pip install -r requirements-test.txt
@@ -69,6 +69,8 @@ python tools/a2mba-clang.py --doctor --clang clang-21 --plugin /path/to/A2MBA.so
 ```text
 --mode verified|paper
 --level light|balanced|medium|heavy
+--hybrid off|ir|native
+--hybrid-layers none|profile|context-adc|context-sbb|context-random
 --seed UINT64
 --functions annotated|all|regex:<pattern>
 --stats
@@ -99,6 +101,8 @@ opt -load-pass-plugin=build\bin\Release\A2MBA.dll -passes=a2mba input.ll -S -o p
 `verified` allows ADC, SBB, Rule Explosion, modular identity wrapping, and the self-contained Context Trap pair. It excludes the paper's RCR/RCL example.
 
 `paper` adds that RCR/RCL transform for research and comparison. It reproduces the published construction, not the authors' unpublished prototype.
+
+`--hybrid ir` replaces each selected operation with an expression found by a bounded equality-saturation search. `--hybrid native` lowers that expression to one x86-64 register-only inline-assembly block. `--hybrid-layers` optionally composes the existing Context Trap and ADC/SBB layers after the base expression is selected. Both switches default to `off`/`none`.
 
 The depth ranges for `light`, `medium`, and `heavy` follow the ranges described by the paper. Candidate and family probabilities, plus the `balanced` profile, are this project's presets:
 
@@ -133,6 +137,12 @@ The LLVM 21.1.8 plugin produced a fixed 1,000-expression corpus with one randomi
 ![ProMBA outcomes for the randomized Context Trap corpus](docs/results/promba-outcomes.png)
 
 This is a project-specific, depth-one Context Trap experiment, not a reproduction of the paper's complete benchmark and not a claim about every transform or profile. The full outcome table, CoBRA and GAMBA compatibility results, parameter-space verification, configuration, and recorded hashes are in [BENCHMARKING.md](docs/BENCHMARKING.md).
+
+## Hybrid baseline
+
+A fixed LLVM 21.1.8 ablation compares classic A²MBA, pure hybrid IR, native register lowering, and hybrid IR composed with Context Trap plus ADC/SBB. On the 83 expressions changed by the layered configuration, independent checking found one correct CoBRA simplification and 28 deceptive simplifications; the remaining outcomes were unchanged, unknown, unsupported, timed out, or failed. ProMBA reduced none of its 20 fixed samples. GAMBA rejected 82 layered expressions because it does not parse arithmetic right shift, so those cases are not counted as demonstrated resilience.
+
+On the synthetic 100-function workload, hybrid IR, hybrid native, and hybrid layered measured 3.86x, 4.33x, and 12.96x median runtime respectively against the plain build. The exact corpus coverage, all outcome categories, compile time, `.text` size, environment, and limitations are in [BENCHMARKING.md](docs/BENCHMARKING.md).
 
 ## Security boundary
 

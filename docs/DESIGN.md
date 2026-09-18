@@ -82,12 +82,22 @@ Public keys are:
 | --- | --- | --- |
 | `mode` | `verified`, `paper` | `verified` |
 | `level` | `light`, `balanced`, `medium`, `heavy` | `balanced` |
+| `hybrid` | `off`, `ir`, `native` | `off` |
+| `hybrid-layers` | `none`, `profile`, `context-adc`, `context-sbb`, `context-random` | `none` |
 | `seed` | unsigned 64-bit integer | OS randomness |
 | `functions` | `annotated`, `all`, `regex:<pattern>` | `annotated` |
 | `stats` | boolean | `false` |
 | `diagnostics` | boolean | `false` |
 
 `transform`, `probability`, and `depth` exist for deterministic tests and research runs, not as primary wrapper switches. Unknown keys and malformed values are hard errors.
+
+## Hybrid planner
+
+Hybrid mode replaces the normal primary transform rather than stacking a second primary transform on top of it. Its e-graph search is bounded by graph nodes, matches, match steps, extraction depth, and AST size. Hybrid extraction uses depths 3 through 16. Each profile also sets a minimum AST size, so a trivial spelling of the source operation is rejected instead of being counted as a hybrid transform. `ir` emits the selected DAG as LLVM instructions and may place a Context Trap at an internal operation. `native` first checks real instruction and scratch-register budgets, then emits one x86-64 register-only inline-assembly block. It never silently falls back to IR.
+
+`hybrid-layers=none` leaves the selected expression unwrapped. `profile` uses the active profile's normal context and architectural probabilities. `context-adc` and `context-sbb` require one Context Trap and the named architectural wrapper. `context-random` requires one Context Trap and chooses ADC or SBB from the configured random stream. A required layer that cannot be emitted causes that source instruction to be skipped rather than silently weakening the requested composition.
+
+Equality search finishes before Context Trap or ADC/SBB is added. Stateful and context-sensitive layers are therefore not fed back into the algebraic rule engine. A planning failure skips only that source instruction and is counted separately.
 
 ## Profiles
 

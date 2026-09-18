@@ -75,6 +75,59 @@ set(LLVM_LIBRARY_OUTPUT_INTDIR "${CMAKE_BINARY_DIR}/lib")
 include(AddLLVM)
 include(GNUInstallDirs)
 
+find_package(Python3 3.9 REQUIRED COMPONENTS Interpreter)
+
+set(A2MBA_HYBRID_SOURCE_DIR "${PROJECT_SOURCE_DIR}/lib/HybridCore")
+set(A2MBA_HYBRID_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/a2mba-hybrid-generated")
+set(A2MBA_HYBRID_VERIFIED_RULES "${A2MBA_HYBRID_GENERATED_DIR}/VerifiedRules.inc")
+set(A2MBA_HYBRID_RULE_REPORT "${A2MBA_HYBRID_GENERATED_DIR}/rules-verification.json")
+
+add_custom_command(
+  OUTPUT
+    "${A2MBA_HYBRID_VERIFIED_RULES}"
+    "${A2MBA_HYBRID_RULE_REPORT}"
+  COMMAND
+    ${Python3_EXECUTABLE}
+    "${PROJECT_SOURCE_DIR}/scripts/verify_hybrid_rules.py"
+    --spec "${A2MBA_HYBRID_SOURCE_DIR}/mba.json"
+    --header "${A2MBA_HYBRID_VERIFIED_RULES}"
+    --report "${A2MBA_HYBRID_RULE_REPORT}"
+  DEPENDS
+    "${A2MBA_HYBRID_SOURCE_DIR}/mba.json"
+    "${PROJECT_SOURCE_DIR}/scripts/verify_hybrid_rules.py"
+    "${PROJECT_SOURCE_DIR}/scripts/hybrid_smt.py"
+  COMMENT "Proving the hybrid MBA rule table at 8/16/32/64 bits"
+  VERBATIM
+)
+
+add_library(A2MBAHybridCore STATIC
+  lib/HybridCore/Core.cpp
+  lib/HybridCore/EGraph.cpp
+  lib/HybridCore/Extractor.cpp
+  lib/HybridCore/Native.cpp
+  lib/HybridCore/Rules.cpp
+  "${A2MBA_HYBRID_VERIFIED_RULES}"
+)
+set_target_properties(A2MBAHybridCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_features(A2MBAHybridCore PUBLIC cxx_std_20)
+target_include_directories(A2MBAHybridCore
+  PUBLIC "${PROJECT_SOURCE_DIR}/include"
+  PRIVATE
+    "${A2MBA_HYBRID_SOURCE_DIR}"
+    "${A2MBA_HYBRID_GENERATED_DIR}"
+)
+if(MSVC)
+  target_compile_options(A2MBAHybridCore PRIVATE /W4)
+else()
+  target_compile_options(A2MBAHybridCore PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wshadow
+  )
+endif()
+
 # Keep the plugin and its native self-test under the same sanitizer contract.
 function(a2mba_enable_sanitizers target_name)
   if(NOT A2MBA_ENABLE_SANITIZERS)
@@ -95,6 +148,8 @@ function(a2mba_enable_sanitizers target_name)
   target_link_options(${target_name} PRIVATE -fsanitize=address,undefined)
 endfunction()
 
+a2mba_enable_sanitizers(A2MBAHybridCore)
+
 set(A2MBA_SOURCES
   lib/Plugin.cpp
   lib/A2MBA.cpp
@@ -105,6 +160,7 @@ set(A2MBA_SOURCES
   lib/Modular.cpp
   lib/AAMBA.cpp
   lib/AGT.cpp
+  lib/Hybrid.cpp
   lib/Metadata.cpp
   lib/Statistics.cpp
 )
@@ -157,6 +213,7 @@ target_compile_definitions(A2MBA
 )
 target_include_directories(A2MBA PRIVATE "${PROJECT_SOURCE_DIR}/include")
 target_include_directories(A2MBA SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+target_link_libraries(A2MBA PRIVATE A2MBAHybridCore)
 
 if(WIN32)
   target_link_libraries(A2MBA PRIVATE bcrypt)
@@ -197,6 +254,5 @@ install(DIRECTORY docs
 
 if(A2MBA_BUILD_TESTS)
   enable_testing()
-  find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
   add_subdirectory(test)
 endif()

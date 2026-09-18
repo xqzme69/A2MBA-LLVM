@@ -100,6 +100,16 @@ The transform remains available as `paper-rcr-rcl` under `mode=paper` for compar
 
 The manager considers scalar `i32` and `i64` `add`, `sub`, `mul`, `and`, `or`, and `xor`. A particular transform may cover the operation itself or wrap one of its operands with an identity. The common eligibility check skips unsupported widths, vectors, dead/generated instructions, and arithmetic carrying `nsw` or `nuw`.
 
+## Hybrid expression search
+
+The optional hybrid path imports the selected operation into a bounded e-graph, applies a build-verified table of fixed-width identities, and extracts a high-scoring expression under explicit depth and AST limits. The score favors operator alternation and variety while penalizing cost and trivial patterns. It is a search heuristic, not a resilience score.
+
+`hybrid=ir` emits the resulting DAG directly. `hybrid=native` lowers it to straight-line x86-64 `mov`, `add`, `sub`, `imul`, `and`, `or`, `xor`, `not`, and `neg` instructions. Scratch registers use early-clobber outputs, inputs are read-only, and flags are declared clobbered. The native block does not use memory, the stack, branches, or hidden physical registers.
+
+`hybrid-layers=none` measures that base expression without another protection layer. `profile` applies the active profile's normal probabilities. `context-adc`, `context-sbb`, and `context-random` require a Context Trap followed by the selected or seeded-random ADC/SBB wrapper. These layers are composed after equality search and are never inserted into the e-graph as if they were stateless algebraic identities.
+
+SaMBA and asmMBA are research inspirations for these two stages. The implementation and rule table are local; their source code and reported results are not reproduced.
+
 ## Nesting and profiles
 
 Profiles select a depth range, not a repetition count for one primitive. At each layer, the manager chooses among transforms allowed by the mode, opcode, and target. A²MBA-LLVM's selection probabilities control candidate density and the AAMBA/AGT mix; see [DESIGN.md](DESIGN.md).

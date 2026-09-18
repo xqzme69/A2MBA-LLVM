@@ -14,7 +14,6 @@ import tempfile
 from pathlib import Path
 from typing import NoReturn, Sequence
 
-
 LLVM_MAJOR = 21
 PLUGIN_ENV = "A2MBA_PLUGIN"
 CLANG_ENV = "A2MBA_CLANG"
@@ -113,6 +112,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--level",
         choices=("light", "balanced", "medium", "heavy"),
         default="balanced",
+    )
+    parser.add_argument(
+        "--hybrid",
+        choices=("off", "ir", "native"),
+        default="off",
+        help="select the bounded hybrid MBA emitter",
+    )
+    parser.add_argument(
+        "--hybrid-layers",
+        choices=("none", "profile", "context-adc", "context-sbb", "context-random"),
+        default="none",
+        help="compose ContextTrap and ADC/SBB around a hybrid expression",
     )
     parser.add_argument(
         "--seed", type=parse_seed, help="deterministic unsigned 64-bit seed"
@@ -330,6 +341,8 @@ def make_options(arguments: argparse.Namespace) -> str:
     options = [
         f"mode={arguments.mode}",
         f"level={arguments.level}",
+        f"hybrid={arguments.hybrid}",
+        f"hybrid-layers={arguments.hybrid_layers}",
         f"functions={arguments.functions}",
         f"stats={'true' if arguments.stats else 'false'}",
     ]

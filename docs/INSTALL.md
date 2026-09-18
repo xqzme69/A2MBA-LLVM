@@ -5,7 +5,8 @@
 - CMake 3.24 or newer.
 - LLVM and Clang 21.x development files. Other LLVM majors are rejected at configure time and by the wrapper.
 - A C++20 compiler compatible with the selected LLVM build.
-- Python 3.8 or newer for `a2mba-clang`, validation helpers, and tests. Test builds also need the pinned package from `requirements-test.txt`.
+- Python 3.9 or newer for rule generation, `a2mba-clang`, validation helpers, and tests.
+- Z3 for build-time verification of the hybrid rule table. The pinned `z3-solver` package satisfies this requirement.
 - An x86-64 Linux or Windows target for architectural transforms.
 
 LLVM's C++ ABI and plugin APIs are version-sensitive. Build the plugin against the Clang/LLVM installation that will load it. Matching `.so` or `.dll` extensions prove nothing; `--doctor` performs an actual load test.
@@ -80,7 +81,7 @@ cmake -S . -B build \
 
 This changes FileCheck discovery only. `clang`, `opt`, and `llc` still come from the selected LLVM package.
 
-The `check-a2mba` target builds the plugin and the native `a2mba-selftest` before running lit. To omit test dependencies from a packaging build, configure with `-DA2MBA_BUILD_TESTS=OFF`.
+The `check-a2mba` target builds the plugin, both native self-tests, rejects a deliberately invalid hybrid rule, and then runs lit. To omit test-only targets from a packaging build, configure with `-DA2MBA_BUILD_TESTS=OFF`. Z3 remains a build dependency because the compiled hybrid rule table is generated only after verification succeeds.
 
 For a Debug/nightly plugin build with host compiler sanitizers:
 
@@ -182,6 +183,8 @@ Use `--plugin PATH` or `A2MBA_PLUGIN`. In a source checkout it searches common `
 ### Function was not transformed
 
 The default is `functions=annotated`. Check that the annotation survived normal compilation. Use `A2MBA_PROTECT_NOINLINE` when inlining removes the boundary, or `--functions all` for an experiment. A selected function can still remain unchanged because of poison flags, unsupported widths or targets, probability, or existing user inline assembly.
+
+Hybrid planning is bounded. If no expression fits its graph, depth, instruction, or register limits, the site is left unchanged and appears under `hybrid planning failure` when diagnostics are enabled.
 
 ### LTO
 

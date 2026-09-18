@@ -17,7 +17,6 @@ import time
 from pathlib import Path
 from typing import Sequence
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LLVM_MAJOR = 21
 
@@ -72,6 +71,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--level",
         choices=("light", "balanced", "medium", "heavy"),
         default="balanced",
+    )
+    parser.add_argument("--hybrid", choices=("off", "ir", "native"), default="off")
+    parser.add_argument(
+        "--hybrid-layers",
+        choices=("none", "profile", "context-adc", "context-sbb", "context-random"),
+        default="none",
     )
     parser.add_argument("--functions", default="all")
     parser.add_argument("--seed", type=unsigned_64, default=1)
@@ -259,6 +264,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             arguments.mode,
             "--level",
             arguments.level,
+            "--hybrid",
+            arguments.hybrid,
+            "--hybrid-layers",
+            arguments.hybrid_layers,
             "--seed",
             str(arguments.seed),
             "--functions",
@@ -316,6 +325,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "source": os.fspath(source),
             "mode": arguments.mode,
             "level": arguments.level,
+            "hybrid": arguments.hybrid,
+            "hybrid_layers": arguments.hybrid_layers,
             "seed": arguments.seed,
             "iterations": arguments.iterations,
             "warmups": arguments.warmups,
