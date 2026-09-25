@@ -11,9 +11,10 @@ config.a2mba_filecheck = r"@A2MBA_FILECHECK_EXECUTABLE@"
 config.targets_to_build = "@TARGETS_TO_BUILD@".split()
 config.a2mba_host_triple = "@A2MBA_HOST_TRIPLE@"
 config.is_cross_compiling = "@CMAKE_CROSSCOMPILING@" == "TRUE"
-config.a2mba_static_llvm_fallback = "@A2MBA_STATIC_LLVM_FALLBACK@" == "ON"
+config.a2mba_standalone_driver = "@A2MBA_STANDALONE_DRIVER@" == "ON"
 
 config.a2mba_plugin = lit_config.params.get("a2mba_plugin", "")
+config.a2mba_opt_driver = lit_config.params.get("a2mba_opt_driver", "")
 config.a2mba_selftest = lit_config.params.get("a2mba_selftest", "")
 
 lit_config.load_config(

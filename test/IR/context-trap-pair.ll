@@ -1,11 +1,11 @@
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=31;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o - | %FileCheck %s --check-prefix=I32
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=31;functions=regex:^agt_i64$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o - | %FileCheck %s --check-prefix=I64
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=1;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o - | %FileCheck %s --check-prefix=ADD-SUB-OR
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=8;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o - | %FileCheck %s --check-prefix=SUB-ADD-XOR
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=12;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o - | %FileCheck %s --check-prefix=XOR-CHAIN-ADD
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=2;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o - | %FileCheck %s --check-prefix=OR-XOR
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=16;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o - | %FileCheck %s --check-prefix=TRIGGER-CANCEL-OR
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=5;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o - | %FileCheck %s --check-prefix=TRAP-DELTA-ADD
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=31;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s" --check-prefix=I32
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=31;functions=regex:^agt_i64$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s" --check-prefix=I64
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=1;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s" --check-prefix=ADD-SUB-OR
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=8;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s" --check-prefix=SUB-ADD-XOR
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=12;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s" --check-prefix=XOR-CHAIN-ADD
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=2;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s" --check-prefix=OR-XOR
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=16;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s" --check-prefix=TRIGGER-CANCEL-OR
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=5;functions=regex:^agt_i32$;transform=context-trap;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s" --check-prefix=TRAP-DELTA-ADD
 
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -23,7 +23,9 @@ entry:
 
 ; I32-LABEL: define i32 @agt_i32(i32 %lhs, i32 %rhs) {{.*}}!a2mba.protected
 ; I32-NEXT: entry:
-; I32-NEXT: [[ORIGINAL:%[^ ]+]] = add i32 %lhs, %rhs, !a2mba.generated ![[GENERATED:[0-9]+]]
+; I32-NEXT: [[LEFT:%[^ ]+]] = freeze i32 %lhs, !a2mba.generated ![[GENERATED:[0-9]+]]
+; I32-NEXT: [[RIGHT:%[^ ]+]] = freeze i32 %rhs, !a2mba.generated ![[GENERATED]]
+; I32-NEXT: [[ORIGINAL:%[^ ]+]] = add i32 [[LEFT]], [[RIGHT]], !a2mba.generated ![[GENERATED]]
 ; I32-NEXT: [[LOW:%[^ ]+]] = and i32 [[ORIGINAL]], 1, !a2mba.generated ![[GENERATED]]
 ; I32-NEXT: [[HIGH:%[^ ]+]] = and i32 [[ORIGINAL]], -2, !a2mba.generated ![[GENERATED]]
 ; I32-NEXT: [[TRAP_INPUT:%[^ ]+]] = and i32 [[ORIGINAL]], 268435455, !a2mba.generated ![[GENERATED]]
@@ -38,11 +40,17 @@ entry:
 ; I32-NEXT: [[DELTA:%[^ ]+]] = sub i32 [[TRIGGER_LOW]], [[LOW]], !a2mba.generated ![[GENERATED]]
 ; I32-NEXT: [[PROTECTED_LOW:%[^ ]+]] = add i32 [[TRAP_PROJECTED]], [[DELTA]], !a2mba.generated ![[GENERATED]]
 ; I32-NEXT: [[RESULT:%[^ ]+]] = add i32 [[HIGH]], [[PROTECTED_LOW]], !a2mba.generated ![[GENERATED]]
-; I32-NEXT: ret i32 [[RESULT]]
+; I32: [[NL_FACTOR0:%a2mba.nl.factor0[^ ]*]] = {{.*}} i32
+; I32: [[NL_FACTOR1:%a2mba.nl.factor1[^ ]*]] = {{.*}} i32
+; I32: [[NL_PRODUCT:%a2mba.nl.product[^ ]*]] = mul i32 [[NL_FACTOR0]], [[NL_FACTOR1]], !a2mba.generated ![[GENERATED]]
+; I32: [[NL_RESULT:%a2mba.nl.result[^ ]*]] = mul i32 {{%[^,]+}}, {{%[^,]+}}, !a2mba.generated ![[GENERATED]]
+; I32-NEXT: ret i32 [[NL_RESULT]]
 
 ; I64-LABEL: define i64 @agt_i64(i64 %lhs, i64 %rhs) {{.*}}!a2mba.protected
 ; I64-NEXT: entry:
-; I64-NEXT: [[ORIGINAL:%[^ ]+]] = add i64 %lhs, %rhs, !a2mba.generated ![[GENERATED:[0-9]+]]
+; I64-NEXT: [[LEFT:%[^ ]+]] = freeze i64 %lhs, !a2mba.generated ![[GENERATED:[0-9]+]]
+; I64-NEXT: [[RIGHT:%[^ ]+]] = freeze i64 %rhs, !a2mba.generated ![[GENERATED]]
+; I64-NEXT: [[ORIGINAL:%[^ ]+]] = add i64 [[LEFT]], [[RIGHT]], !a2mba.generated ![[GENERATED]]
 ; I64-NEXT: [[LOW:%[^ ]+]] = and i64 [[ORIGINAL]], 1, !a2mba.generated ![[GENERATED]]
 ; I64-NEXT: [[HIGH:%[^ ]+]] = and i64 [[ORIGINAL]], -2, !a2mba.generated ![[GENERATED]]
 ; I64-NEXT: [[TRAP_INPUT:%[^ ]+]] = and i64 [[ORIGINAL]], 1152921504606846975, !a2mba.generated ![[GENERATED]]
@@ -57,7 +65,11 @@ entry:
 ; I64-NEXT: [[DELTA:%[^ ]+]] = sub i64 [[TRIGGER_LOW]], [[LOW]], !a2mba.generated ![[GENERATED]]
 ; I64-NEXT: [[PROTECTED_LOW:%[^ ]+]] = add i64 [[TRAP_PROJECTED]], [[DELTA]], !a2mba.generated ![[GENERATED]]
 ; I64-NEXT: [[RESULT:%[^ ]+]] = add i64 [[HIGH]], [[PROTECTED_LOW]], !a2mba.generated ![[GENERATED]]
-; I64-NEXT: ret i64 [[RESULT]]
+; I64: [[NL_FACTOR0:%a2mba.nl.factor0[^ ]*]] = {{.*}} i64
+; I64: [[NL_FACTOR1:%a2mba.nl.factor1[^ ]*]] = {{.*}} i64
+; I64: [[NL_PRODUCT:%a2mba.nl.product[^ ]*]] = mul i64 [[NL_FACTOR0]], [[NL_FACTOR1]], !a2mba.generated ![[GENERATED]]
+; I64: [[NL_RESULT:%a2mba.nl.result[^ ]*]] = mul i64 {{%[^,]+}}, {{%[^,]+}}, !a2mba.generated ![[GENERATED]]
+; I64-NEXT: ret i64 [[NL_RESULT]]
 
 ; ADD-SUB-OR: [[COMBINED:%a2mba.agt.combined[^ ]*]] = add i32 [[TRIGGER:%[^ ]+]], [[TRAP:%[^ ]+]], !a2mba.generated
 ; ADD-SUB-OR-NEXT: [[PROTECTED:%[^ ]+]] = sub i32 [[COMBINED]], {{%[^ ]+}}, !a2mba.generated

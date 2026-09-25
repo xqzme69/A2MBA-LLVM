@@ -59,7 +59,9 @@ bool validContextParameters(const ContextTrapParameters &parameters, unsigned bi
   return parameters.shift && parameters.shift < bitWidth - 1 && parameters.selectedBits &&
          !(parameters.selectedBits >> parameters.shift) &&
          static_cast<unsigned>(parameters.variant) <
-             static_cast<unsigned>(ContextTrapVariant::Count);
+             static_cast<unsigned>(ContextTrapVariant::Count) &&
+         static_cast<unsigned>(parameters.envelope.variant) <
+             static_cast<unsigned>(NonlinearEnvelopeVariant::Count);
 }
 
 llvm::Error validateEmission(llvm::IRBuilderBase &builder, llvm::BinaryOperator &operation,
@@ -108,6 +110,10 @@ llvm::Error validateEmission(llvm::IRBuilderBase &builder, llvm::BinaryOperator 
         !supportsNativeTarget(*operation.getModule())) {
       return makeError("unsupported architectural layer");
     }
+  }
+  if (static_cast<unsigned>(layers.nonlinear.variant) >=
+      static_cast<unsigned>(NonlinearEnvelopeVariant::Count)) {
+    return makeError("invalid nonlinear envelope variant");
   }
   return llvm::Error::success();
 }
@@ -252,26 +258,35 @@ llvm::Expected<Plan> plan(llvm::BinaryOperator &operation, const Options &option
               std::move(selected.value->report)};
 }
 
-llvm::Expected<llvm::Value *> emit(llvm::IRBuilderBase &builder, llvm::BinaryOperator &operation,
-                                   const Plan &plan, const Layers &layers) {
+llvm::Expected<llvm::Value *> emitWithOperands(llvm::IRBuilderBase &builder,
+                                               llvm::BinaryOperator &operation, const Plan &plan,
+                                               llvm::Value &leftOperand, llvm::Value &rightOperand,
+                                               const Layers &layers) {
   if (auto error = validateEmission(builder, operation, plan, layers)) {
     return std::move(error);
   }
-
-  auto *leftOperand = mark(builder.CreateFreeze(operation.getOperand(0), "a2mba.hybrid.x"));
-  auto *rightOperand = operation.getOperand(0) == operation.getOperand(1)
-                           ? leftOperand
-                           : mark(builder.CreateFreeze(operation.getOperand(1), "a2mba.hybrid.y"));
+  if (leftOperand.getType() != operation.getType() ||
+      rightOperand.getType() != operation.getType()) {
+    return makeError("replacement operands do not match the original integer type");
+  }
 
   auto replacement = [&]() -> llvm::Expected<llvm::Value *> {
     if (plan.native) {
-      return emitNative(builder, operation, plan, leftOperand, rightOperand);
+      return emitNative(builder, operation, plan, &leftOperand, &rightOperand);
     }
-    return emitIR(builder, operation, plan, layers, leftOperand, rightOperand);
+    return emitIR(builder, operation, plan, layers, &leftOperand, &rightOperand);
   }();
   if (!replacement) {
     return replacement.takeError();
   }
-  return applyOuterLayers(builder, operation, *replacement, layers);
+  llvm::Value *hardened =
+      applyNonlinearEnvelope(builder, **replacement, leftOperand, rightOperand, layers.nonlinear);
+  return applyOuterLayers(builder, operation, hardened, layers);
+}
+
+llvm::Expected<llvm::Value *> emit(llvm::IRBuilderBase &builder, llvm::BinaryOperator &operation,
+                                   const Plan &plan, const Layers &layers) {
+  return emitWithOperands(builder, operation, plan, *operation.getOperand(0),
+                          *operation.getOperand(1), layers);
 }
 } // namespace a2mba::hybrid

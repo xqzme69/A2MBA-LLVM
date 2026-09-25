@@ -65,6 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--opt", help="forwarded to a2mba-clang")
     parser.add_argument("--plugin", help="forwarded to a2mba-clang")
     parser.add_argument("--hybrid", choices=("off", "ir", "native"), default="off")
+    parser.add_argument("--hybrid-region", choices=("none", "stateful"), default="none")
     parser.add_argument(
         "--hybrid-layers",
         choices=("none", "profile", "context-adc", "context-sbb", "context-random"),
@@ -86,6 +87,8 @@ def wrapper_overrides(arguments: argparse.Namespace) -> list[str]:
     overrides = [
         "--hybrid",
         arguments.hybrid,
+        "--hybrid-region",
+        arguments.hybrid_region,
         "--hybrid-layers",
         arguments.hybrid_layers,
     ]

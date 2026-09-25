@@ -73,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="balanced",
     )
     parser.add_argument("--hybrid", choices=("off", "ir", "native"), default="off")
+    parser.add_argument("--hybrid-region", choices=("none", "stateful"), default="none")
     parser.add_argument(
         "--hybrid-layers",
         choices=("none", "profile", "context-adc", "context-sbb", "context-random"),
@@ -266,6 +267,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             arguments.level,
             "--hybrid",
             arguments.hybrid,
+            "--hybrid-region",
+            arguments.hybrid_region,
             "--hybrid-layers",
             arguments.hybrid_layers,
             "--seed",
@@ -326,6 +329,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "mode": arguments.mode,
             "level": arguments.level,
             "hybrid": arguments.hybrid,
+            "hybrid_region": arguments.hybrid_region,
             "hybrid_layers": arguments.hybrid_layers,
             "seed": arguments.seed,
             "iterations": arguments.iterations,

@@ -1,4 +1,4 @@
-; RUN: env A2MBA_OPTIONS="mode=verified;level=light;seed=1;functions=all;transform=rule-explosion;probability=100;depth=1;stats=true" %a2mba_opt -passes=a2mba -S %s -o - | %FileCheck %s
+; RUN: env A2MBA_OPTIONS="mode=verified;level=light;seed=1;functions=all;transform=rule-explosion;probability=100;depth=1;stats=true" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s"
 
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -9,8 +9,10 @@ entry:
 }
 
 ; CHECK-LABEL: define i32 @plugin_load(i32 %lhs, i32 %rhs) {{.*}}!a2mba.protected
-; CHECK: mul i32 %lhs, {{-?[0-9]+}}, !a2mba.generated
-; CHECK: mul i32 %rhs, {{-?[0-9]+}}, !a2mba.generated
+; CHECK: [[LEFT:%[^ ]+]] = freeze i32 %lhs, !a2mba.generated
+; CHECK-NEXT: [[RIGHT:%[^ ]+]] = freeze i32 %rhs, !a2mba.generated
+; CHECK: mul i32 [[LEFT]], {{-?[0-9]+}}, !a2mba.generated
+; CHECK: mul i32 [[RIGHT]], {{-?[0-9]+}}, !a2mba.generated
 ; CHECK: add i32
 ; CHECK: mul i32
 ; CHECK: !a2mba.processed = !{

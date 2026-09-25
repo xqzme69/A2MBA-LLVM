@@ -41,6 +41,11 @@ enum class HybridLayerMode {
   ContextRandom,
 };
 
+enum class HybridRegionMode {
+  None,
+  Stateful,
+};
+
 enum class TransformKind {
   Auto,
   RuleExplosion,
@@ -65,6 +70,7 @@ struct Config {
   FunctionSelectionKind functionSelection = FunctionSelectionKind::Annotated;
   HybridMode hybridMode = HybridMode::Off;
   HybridLayerMode hybridLayers = HybridLayerMode::None;
+  HybridRegionMode hybridRegion = HybridRegionMode::None;
   TransformKind forcedTransform = TransformKind::Auto;
   std::optional<std::uint64_t> seed;
   std::optional<unsigned> forcedDepth;
@@ -82,6 +88,7 @@ llvm::StringRef toString(ImplementationMode mode);
 llvm::StringRef toString(ProtectionLevel level);
 llvm::StringRef toString(HybridMode mode);
 llvm::StringRef toString(HybridLayerMode mode);
+llvm::StringRef toString(HybridRegionMode mode);
 llvm::StringRef toString(TransformKind transform);
 
 } // namespace a2mba

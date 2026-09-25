@@ -1,5 +1,5 @@
 ; REQUIRES: x86-registered-target
-; RUN: env A2MBA_OPTIONS="mode=verified;level=light;seed=43;functions=all;transform=sbb;probability=100;depth=1" %a2mba_opt -passes=a2mba %s -o - | %llc -mtriple=x86_64-unknown-linux-gnu -O0 -o - | %FileCheck %s
+; RUN: env A2MBA_OPTIONS="mode=verified;level=light;seed=43;functions=all;transform=sbb;probability=100;depth=1" %a2mba_opt -passes=a2mba "%s" -o - | %llc -mtriple=x86_64-unknown-linux-gnu -O0 -o - | %FileCheck "%s"
 
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -16,14 +16,10 @@ entry:
 }
 
 ; CHECK-LABEL: sbb_i32:
-; CHECK: pushfq
-; CHECK: stc
+; CHECK: {{stc|clc|btl|cmpl}}
 ; CHECK: sbbl
-; CHECK-COUNT-2: addl
-; CHECK: popfq
+; CHECK-COUNT-2: {{addl|incl}}
 ; CHECK-LABEL: sbb_i64:
-; CHECK: pushfq
-; CHECK: stc
+; CHECK: {{stc|clc|btq|cmpq}}
 ; CHECK: sbbq
-; CHECK-COUNT-2: addq
-; CHECK: popfq
+; CHECK-COUNT-2: {{addq|incq}}

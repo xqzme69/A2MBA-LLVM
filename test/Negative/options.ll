@@ -1,23 +1,25 @@
-; RUN: not env A2MBA_OPTIONS="mode=unsafe" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=MODE
-; RUN: not env A2MBA_OPTIONS="level=extreme" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=LEVEL
-; RUN: not env A2MBA_OPTIONS="seed=minus-one" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=SEED
-; RUN: not env A2MBA_OPTIONS="functions=regex:" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=FUNCTIONS
-; RUN: not env A2MBA_OPTIONS="transform=unknown" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=TRANSFORM
-; RUN: not env A2MBA_OPTIONS="probability=101" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=PROBABILITY
-; RUN: not env A2MBA_OPTIONS="depth=0" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=DEPTH
-; RUN: not env A2MBA_OPTIONS="stats=perhaps" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=STATS
-; RUN: not env A2MBA_OPTIONS="mystery=true" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=UNKNOWN
-; RUN: not env A2MBA_OPTIONS="mode=verified;transform=paper-rcr-rcl" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=PAPER
-; RUN: not env A2MBA_OPTIONS="hybrid=unknown" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=HYBRID
-; RUN: not env A2MBA_OPTIONS="hybrid=ir;transform=rule-explosion" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=HYBRID-TRANSFORM
-; RUN: not env A2MBA_OPTIONS="hybrid=ir;transform=modular-scale" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=HYBRID-TRANSFORM
-; RUN: not env A2MBA_OPTIONS="mode=paper;hybrid=native;transform=paper-rcr-rcl" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=HYBRID-TRANSFORM
-; RUN: not env A2MBA_OPTIONS="hybrid=ir;depth=1" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=HYBRID-DEPTH
-; RUN: not env A2MBA_OPTIONS="hybrid=ir;depth=2" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=HYBRID-DEPTH
-; RUN: not env A2MBA_OPTIONS="hybrid=native;depth=17" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=HYBRID-DEPTH
-; RUN: not env A2MBA_OPTIONS="hybrid-layers=context-random" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=HYBRID-LAYERS-REQUIRES-HYBRID
-; RUN: not env A2MBA_OPTIONS="hybrid=ir;hybrid-layers=unknown" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=HYBRID-LAYERS
-; RUN: not env A2MBA_OPTIONS="hybrid=ir;hybrid-layers=context-adc;transform=sbb" %a2mba_opt -passes=a2mba -disable-output %s 2>&1 | %FileCheck %s --check-prefix=HYBRID-LAYERS-TRANSFORM
+; RUN: not env A2MBA_OPTIONS="mode=unsafe" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=MODE
+; RUN: not env A2MBA_OPTIONS="level=extreme" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=LEVEL
+; RUN: not env A2MBA_OPTIONS="seed=minus-one" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=SEED
+; RUN: not env A2MBA_OPTIONS="functions=regex:" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=FUNCTIONS
+; RUN: not env A2MBA_OPTIONS="transform=unknown" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=TRANSFORM
+; RUN: not env A2MBA_OPTIONS="probability=101" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=PROBABILITY
+; RUN: not env A2MBA_OPTIONS="depth=0" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=DEPTH
+; RUN: not env A2MBA_OPTIONS="stats=perhaps" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=STATS
+; RUN: not env A2MBA_OPTIONS="mystery=true" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=UNKNOWN
+; RUN: not env A2MBA_OPTIONS="mode=verified;transform=paper-rcr-rcl" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=PAPER
+; RUN: not env A2MBA_OPTIONS="hybrid=unknown" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID
+; RUN: not env A2MBA_OPTIONS="hybrid=ir;transform=rule-explosion" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-TRANSFORM
+; RUN: not env A2MBA_OPTIONS="hybrid=ir;transform=modular-scale" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-TRANSFORM
+; RUN: not env A2MBA_OPTIONS="mode=paper;hybrid=native;transform=paper-rcr-rcl" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-TRANSFORM
+; RUN: not env A2MBA_OPTIONS="hybrid=ir;depth=1" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-DEPTH
+; RUN: not env A2MBA_OPTIONS="hybrid=ir;depth=2" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-DEPTH
+; RUN: not env A2MBA_OPTIONS="hybrid=native;depth=17" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-DEPTH
+; RUN: not env A2MBA_OPTIONS="hybrid-layers=context-random" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-LAYERS-REQUIRES-HYBRID
+; RUN: not env A2MBA_OPTIONS="hybrid=ir;hybrid-layers=unknown" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-LAYERS
+; RUN: not env A2MBA_OPTIONS="hybrid=ir;hybrid-layers=context-adc;transform=sbb" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-LAYERS-TRANSFORM
+; RUN: not env A2MBA_OPTIONS="hybrid-region=stateful" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-REGION-REQUIRES-HYBRID
+; RUN: not env A2MBA_OPTIONS="hybrid=ir;hybrid-region=unknown" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-REGION
 
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -42,3 +44,5 @@ entry:
 ; HYBRID-LAYERS-REQUIRES-HYBRID: hybrid-layers requires hybrid=ir or hybrid=native
 ; HYBRID-LAYERS: invalid A2MBA option hybrid-layers=unknown
 ; HYBRID-LAYERS-TRANSFORM: hybrid-layers cannot be combined with an explicit transform
+; HYBRID-REGION-REQUIRES-HYBRID: hybrid-region requires hybrid=ir or hybrid=native
+; HYBRID-REGION: invalid A2MBA option hybrid-region=unknown

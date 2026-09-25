@@ -1,40 +1,40 @@
 ; REQUIRES: clang, host-executable
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=51;functions=regex:^candidate_.*$;transform=rule-explosion;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.rule.ll
-; RUN: %clang -O0 %t.rule.ll -o %t.rule.exe
-; RUN: %t.rule.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=52;functions=regex:^candidate_.*$;transform=adc;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.adc.ll
-; RUN: %clang -O0 %t.adc.ll -o %t.adc.exe
-; RUN: %t.adc.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=53;functions=regex:^candidate_.*$;transform=sbb;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.sbb.ll
-; RUN: %clang -O0 %t.sbb.ll -o %t.sbb.exe
-; RUN: %t.sbb.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=1;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.agt0.ll
-; RUN: %clang -O0 %t.agt0.ll -o %t.agt0.exe
-; RUN: %t.agt0.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=2;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.agt1.ll
-; RUN: %clang -O0 %t.agt1.ll -o %t.agt1.exe
-; RUN: %t.agt1.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=5;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.agt2.ll
-; RUN: %clang -O0 %t.agt2.ll -o %t.agt2.exe
-; RUN: %t.agt2.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=8;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.agt3.ll
-; RUN: %clang -O0 %t.agt3.ll -o %t.agt3.exe
-; RUN: %t.agt3.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=12;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.agt4.ll
-; RUN: %clang -O0 %t.agt4.ll -o %t.agt4.exe
-; RUN: %t.agt4.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=16;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.agt5.ll
-; RUN: %clang -O0 %t.agt5.ll -o %t.agt5.exe
-; RUN: %t.agt5.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=54;functions=regex:^candidate_.*$;hybrid=ir;transform=auto;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.hybrid-ir.ll
-; RUN: %clang -O0 %t.hybrid-ir.ll -o %t.hybrid-ir.exe
-; RUN: %t.hybrid-ir.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=55;functions=regex:^candidate_.*$;hybrid=native;transform=auto;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.hybrid-native.ll
-; RUN: %clang -O0 %t.hybrid-native.ll -o %t.hybrid-native.exe
-; RUN: %t.hybrid-native.exe
-; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=56;functions=regex:^candidate_.*$;hybrid=ir;hybrid-layers=context-random;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S %s -o %t.hybrid-layered.ll
-; RUN: %clang -O0 %t.hybrid-layered.ll -o %t.hybrid-layered.exe
-; RUN: %t.hybrid-layered.exe
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=51;functions=regex:^candidate_.*$;transform=rule-explosion;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.rule.ll"
+; RUN: %clang -O0 "%t.rule.ll" -o "%t.rule.exe"
+; RUN: "%t.rule.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=52;functions=regex:^candidate_.*$;transform=adc;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.adc.ll"
+; RUN: %clang -O0 "%t.adc.ll" -o "%t.adc.exe"
+; RUN: "%t.adc.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=53;functions=regex:^candidate_.*$;transform=sbb;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.sbb.ll"
+; RUN: %clang -O0 "%t.sbb.ll" -o "%t.sbb.exe"
+; RUN: "%t.sbb.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=1;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.agt0.ll"
+; RUN: %clang -O0 "%t.agt0.ll" -o "%t.agt0.exe"
+; RUN: "%t.agt0.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=2;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.agt1.ll"
+; RUN: %clang -O0 "%t.agt1.ll" -o "%t.agt1.exe"
+; RUN: "%t.agt1.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=5;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.agt2.ll"
+; RUN: %clang -O0 "%t.agt2.ll" -o "%t.agt2.exe"
+; RUN: "%t.agt2.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=8;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.agt3.ll"
+; RUN: %clang -O0 "%t.agt3.ll" -o "%t.agt3.exe"
+; RUN: "%t.agt3.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=12;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.agt4.ll"
+; RUN: %clang -O0 "%t.agt4.ll" -o "%t.agt4.exe"
+; RUN: "%t.agt4.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=heavy;seed=16;functions=regex:^candidate_.*$;transform=context-trap;probability=100;depth=1" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.agt5.ll"
+; RUN: %clang -O0 "%t.agt5.ll" -o "%t.agt5.exe"
+; RUN: "%t.agt5.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=54;functions=regex:^candidate_.*$;hybrid=ir;transform=auto;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.hybrid-ir.ll"
+; RUN: %clang -O0 "%t.hybrid-ir.ll" -o "%t.hybrid-ir.exe"
+; RUN: "%t.hybrid-ir.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=55;functions=regex:^candidate_.*$;hybrid=native;transform=auto;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.hybrid-native.ll"
+; RUN: %clang -O0 "%t.hybrid-native.ll" -o "%t.hybrid-native.exe"
+; RUN: "%t.hybrid-native.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=56;functions=regex:^candidate_.*$;hybrid=ir;hybrid-layers=context-random;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba -S "%s" -o "%t.hybrid-layered.ll"
+; RUN: %clang -O0 "%t.hybrid-layered.ll" -o "%t.hybrid-layered.exe"
+; RUN: "%t.hybrid-layered.exe"
 
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -62,6 +62,54 @@ entry:
   ret i64 %sum
 }
 
+define i64 @candidate_variant0(i64 %lhs, i64 %rhs) {
+entry:
+  %sum = add i64 %lhs, %rhs
+  ret i64 %sum
+}
+
+define i64 @candidate_variant1(i64 %lhs, i64 %rhs) {
+entry:
+  %sum = add i64 %lhs, %rhs
+  ret i64 %sum
+}
+
+define i64 @candidate_variant2(i64 %lhs, i64 %rhs) {
+entry:
+  %sum = add i64 %lhs, %rhs
+  ret i64 %sum
+}
+
+define i64 @candidate_variant3(i64 %lhs, i64 %rhs) {
+entry:
+  %sum = add i64 %lhs, %rhs
+  ret i64 %sum
+}
+
+define i64 @candidate_variant4(i64 %lhs, i64 %rhs) {
+entry:
+  %sum = add i64 %lhs, %rhs
+  ret i64 %sum
+}
+
+define i64 @candidate_variant5(i64 %lhs, i64 %rhs) {
+entry:
+  %sum = add i64 %lhs, %rhs
+  ret i64 %sum
+}
+
+define i64 @candidate_variant6(i64 %lhs, i64 %rhs) {
+entry:
+  %sum = add i64 %lhs, %rhs
+  ret i64 %sum
+}
+
+define i64 @candidate_variant7(i64 %lhs, i64 %rhs) {
+entry:
+  %sum = add i64 %lhs, %rhs
+  ret i64 %sum
+}
+
 define i32 @main() {
 entry:
   %reference_zero = call i32 @reference_i32(i32 0, i32 0)
@@ -84,10 +132,35 @@ entry:
   %candidate_mixed64 = call i64 @candidate_i64(i64 -81985529216486895, i64 1147797409030816545)
   %bad_mixed64 = icmp ne i64 %reference_mixed64, %candidate_mixed64
 
+  %variant0 = call i64 @candidate_variant0(i64 -81985529216486895, i64 1147797409030816545)
+  %variant1 = call i64 @candidate_variant1(i64 -81985529216486895, i64 1147797409030816545)
+  %variant2 = call i64 @candidate_variant2(i64 -81985529216486895, i64 1147797409030816545)
+  %variant3 = call i64 @candidate_variant3(i64 -81985529216486895, i64 1147797409030816545)
+  %variant4 = call i64 @candidate_variant4(i64 -81985529216486895, i64 1147797409030816545)
+  %variant5 = call i64 @candidate_variant5(i64 -81985529216486895, i64 1147797409030816545)
+  %variant6 = call i64 @candidate_variant6(i64 -81985529216486895, i64 1147797409030816545)
+  %variant7 = call i64 @candidate_variant7(i64 -81985529216486895, i64 1147797409030816545)
+  %bad_variant0 = icmp ne i64 %reference_mixed64, %variant0
+  %bad_variant1 = icmp ne i64 %reference_mixed64, %variant1
+  %bad_variant2 = icmp ne i64 %reference_mixed64, %variant2
+  %bad_variant3 = icmp ne i64 %reference_mixed64, %variant3
+  %bad_variant4 = icmp ne i64 %reference_mixed64, %variant4
+  %bad_variant5 = icmp ne i64 %reference_mixed64, %variant5
+  %bad_variant6 = icmp ne i64 %reference_mixed64, %variant6
+  %bad_variant7 = icmp ne i64 %reference_mixed64, %variant7
+
   %bad0 = or i1 %bad_zero, %bad_wrap32
   %bad1 = or i1 %bad_mixed32, %bad_wrap64
   %bad2 = or i1 %bad0, %bad1
-  %bad = or i1 %bad2, %bad_mixed64
+  %bad3 = or i1 %bad2, %bad_mixed64
+  %bad4 = or i1 %bad_variant0, %bad_variant1
+  %bad5 = or i1 %bad_variant2, %bad_variant3
+  %bad6 = or i1 %bad_variant4, %bad_variant5
+  %bad7 = or i1 %bad_variant6, %bad_variant7
+  %bad8 = or i1 %bad4, %bad5
+  %bad9 = or i1 %bad6, %bad7
+  %bad10 = or i1 %bad8, %bad9
+  %bad = or i1 %bad3, %bad10
   %exit_code = zext i1 %bad to i32
   ret i32 %exit_code
 }

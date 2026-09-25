@@ -64,6 +64,136 @@ llvm::Value *applyModularScale(llvm::IRBuilderBase &builder, llvm::Value &input,
   return mark(builder.CreateMul(scaled, asConstant(type, inverse), "a2mba.scale.result"));
 }
 
+llvm::Value *createOddModularInverse(llvm::IRBuilderBase &builder, llvm::Value &key,
+                                     const NonlinearEnvelopeParameters &parameters) {
+  auto *integerType = llvm::cast<llvm::IntegerType>(key.getType());
+  const unsigned bitWidth = integerType->getBitWidth();
+  constexpr unsigned geometricVariantBit = 29;
+  if ((parameters.secondSalt >> geometricVariantBit) & 1U) {
+    // For odd key, q = 1 - key is even and (1 - q) * product(1 + q^(2^i)) = 1 mod 2^w.
+    auto *one = llvm::ConstantInt::get(integerType, 1);
+    llvm::Value *error = mark(builder.CreateSub(one, &key, "a2mba.inverse.error"));
+    llvm::Value *inverse = one;
+    for (unsigned bits = 1; bits < bitWidth; bits *= 2) {
+      auto *factor = mark(builder.CreateAdd(one, error, "a2mba.inverse.factor"));
+      inverse = mark(builder.CreateMul(inverse, factor, "a2mba.inverse.product"));
+      if (bits * 2 < bitWidth) {
+        error = mark(builder.CreateMul(error, error, "a2mba.inverse.error.square"));
+      }
+    }
+    return inverse;
+  }
+
+  const bool twoBitSeed = ((parameters.firstSalt >> 7U) & 1U) != 0;
+  llvm::Value *inverse = &key;
+  unsigned correctBits = 1;
+  if (twoBitSeed) {
+    inverse =
+        mark(builder.CreateSub(llvm::ConstantInt::get(integerType, 2), &key, "a2mba.inverse"));
+    correctBits = 2;
+  }
+
+  unsigned refinement = 0;
+  for (; correctBits < bitWidth; correctBits *= 2, ++refinement) {
+    const unsigned variant = static_cast<unsigned>(
+        ((parameters.secondSalt >> (refinement * 2U)) ^ parameters.firstSalt) % 3U);
+    if (variant == 0) {
+      auto *keyProduct = mark(builder.CreateMul(&key, inverse, "a2mba.inverse.product"));
+      auto *correction = mark(builder.CreateSub(llvm::ConstantInt::get(integerType, 2), keyProduct,
+                                                "a2mba.inverse.correction"));
+      inverse = mark(builder.CreateMul(inverse, correction, "a2mba.inverse.refined"));
+      continue;
+    }
+    if (variant == 1) {
+      auto *keyProduct = mark(builder.CreateMul(&key, inverse, "a2mba.inverse.product"));
+      auto *error = mark(builder.CreateSub(llvm::ConstantInt::get(integerType, 1), keyProduct,
+                                           "a2mba.inverse.error"));
+      auto *delta = mark(builder.CreateMul(inverse, error, "a2mba.inverse.delta"));
+      inverse = mark(builder.CreateAdd(inverse, delta, "a2mba.inverse.refined"));
+      continue;
+    }
+
+    auto *doubledInverse = mark(builder.CreateAdd(inverse, inverse, "a2mba.inverse.doubled"));
+    auto *inverseSquare = mark(builder.CreateMul(inverse, inverse, "a2mba.inverse.square"));
+    auto *scaledSquare = mark(builder.CreateMul(&key, inverseSquare, "a2mba.inverse.scaled"));
+    inverse = mark(builder.CreateSub(doubledInverse, scaledSquare, "a2mba.inverse.refined"));
+  }
+  return inverse;
+}
+
+llvm::Value *applyNonlinearEnvelope(llvm::IRBuilderBase &builder, llvm::Value &input,
+                                    llvm::Value &leftContext, llvm::Value &rightContext,
+                                    const NonlinearEnvelopeParameters &parameters) {
+  auto *integerType = llvm::cast<llvm::IntegerType>(input.getType());
+  assert(leftContext.getType() == integerType && rightContext.getType() == integerType);
+  assert(static_cast<unsigned>(parameters.variant) <
+         static_cast<unsigned>(NonlinearEnvelopeVariant::Count));
+
+  auto *firstSalt = llvm::ConstantInt::get(integerType, parameters.firstSalt);
+  auto *secondSalt = llvm::ConstantInt::get(integerType, parameters.secondSalt);
+  llvm::Value *firstFactor = nullptr;
+  llvm::Value *secondFactor = nullptr;
+
+  switch (parameters.variant) {
+  case NonlinearEnvelopeVariant::XorAdd: {
+    auto *saltedLeft = mark(builder.CreateXor(&leftContext, firstSalt, "a2mba.nl.left"));
+    firstFactor = mark(builder.CreateAdd(saltedLeft, &rightContext, "a2mba.nl.factor0"));
+    auto *saltedRight = mark(builder.CreateAdd(&rightContext, secondSalt, "a2mba.nl.right"));
+    secondFactor = mark(builder.CreateXor(saltedRight, &leftContext, "a2mba.nl.factor1"));
+    break;
+  }
+  case NonlinearEnvelopeVariant::AddXor: {
+    auto *saltedLeft = mark(builder.CreateAdd(&leftContext, firstSalt, "a2mba.nl.left"));
+    firstFactor = mark(builder.CreateXor(saltedLeft, &rightContext, "a2mba.nl.factor0"));
+    auto *saltedRight = mark(builder.CreateXor(&rightContext, secondSalt, "a2mba.nl.right"));
+    secondFactor = mark(builder.CreateSub(saltedRight, &leftContext, "a2mba.nl.factor1"));
+    break;
+  }
+  case NonlinearEnvelopeVariant::SubXor: {
+    auto *saltedRight = mark(builder.CreateSub(&rightContext, firstSalt, "a2mba.nl.right"));
+    firstFactor = mark(builder.CreateXor(&leftContext, saltedRight, "a2mba.nl.factor0"));
+    auto *saltedLeft = mark(builder.CreateXor(&leftContext, secondSalt, "a2mba.nl.left"));
+    secondFactor = mark(builder.CreateAdd(saltedLeft, &rightContext, "a2mba.nl.factor1"));
+    break;
+  }
+  case NonlinearEnvelopeVariant::Count:
+    llvm_unreachable("invalid nonlinear envelope variant");
+  }
+
+  auto *product = mark(builder.CreateMul(firstFactor, secondFactor, "a2mba.nl.product"));
+  auto *doubled = mark(builder.CreateAdd(product, product, "a2mba.nl.doubled"));
+  llvm::Value *key = nullptr;
+  switch ((parameters.firstSalt ^ parameters.secondSalt) % 3U) {
+  case 0:
+    key = mark(builder.CreateOr(doubled, llvm::ConstantInt::get(integerType, 1), "a2mba.nl.key"));
+    break;
+  case 1:
+    key = mark(builder.CreateAdd(doubled, llvm::ConstantInt::get(integerType, 1), "a2mba.nl.key"));
+    break;
+  case 2:
+    key = mark(builder.CreateXor(doubled, llvm::ConstantInt::get(integerType, 1), "a2mba.nl.key"));
+    break;
+  }
+
+  llvm::Value *inverse = createOddModularInverse(builder, *key, parameters);
+
+  switch ((parameters.firstSalt >> 11U) % 3U) {
+  case 0: {
+    auto *encoded = mark(builder.CreateMul(&input, key, "a2mba.nl.encoded"));
+    return mark(builder.CreateMul(encoded, inverse, "a2mba.nl.result"));
+  }
+  case 1: {
+    auto *encoded = mark(builder.CreateMul(&input, inverse, "a2mba.nl.encoded"));
+    return mark(builder.CreateMul(encoded, key, "a2mba.nl.result"));
+  }
+  case 2: {
+    auto *unity = mark(builder.CreateMul(key, inverse, "a2mba.nl.unity"));
+    return mark(builder.CreateMul(&input, unity, "a2mba.nl.result"));
+  }
+  }
+  llvm_unreachable("invalid nonlinear decode variant");
+}
+
 llvm::Value *applyContextTrap(llvm::IRBuilderBase &builder, llvm::Value &input,
                               const ContextTrapParameters &parameters) {
   auto *integerType = llvm::cast<llvm::IntegerType>(input.getType());
@@ -144,7 +274,7 @@ llvm::Value *applyContextTrap(llvm::IRBuilderBase &builder, llvm::Value &input,
   case ContextTrapVariant::Count:
     llvm_unreachable("invalid Context Trap variant");
   }
-  return result;
+  return applyNonlinearEnvelope(builder, *result, input, *triggerProjection, parameters.envelope);
 }
 
 } // namespace a2mba

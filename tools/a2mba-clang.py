@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import signal
@@ -12,7 +13,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import NoReturn, Sequence
+from typing import Iterator, NoReturn, Sequence
 
 LLVM_MAJOR = 21
 PLUGIN_ENV = "A2MBA_PLUGIN"
@@ -100,10 +101,12 @@ def build_parser() -> argparse.ArgumentParser:
         epilog="Unrecognized arguments are treated as Clang arguments.",
     )
     parser.add_argument(
-        "--doctor", action="store_true", help="check Clang and plugin compatibility"
+        "--doctor",
+        action="store_true",
+        help="check Clang and the A2MBA pass entry point",
     )
     parser.add_argument(
-        "--plugin", metavar="PATH", help=f"plugin path (or ${PLUGIN_ENV})"
+        "--plugin", metavar="PATH", help=f"plugin path (or ${PLUGIN_ENV}) on Linux"
     )
     parser.add_argument("--clang", metavar="PATH", help=f"Clang path (or ${CLANG_ENV})")
     parser.add_argument("--opt", metavar="PATH", help=f"opt path (or ${OPT_ENV})")
@@ -126,6 +129,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="compose ContextTrap and ADC/SBB around a hybrid expression",
     )
     parser.add_argument(
+        "--hybrid-region",
+        choices=("none", "stateful"),
+        default="none",
+        help="encode eligible straight-line hybrid regions with carried state",
+    )
+    parser.add_argument(
         "--seed", type=parse_seed, help="deterministic unsigned 64-bit seed"
     )
     parser.add_argument("--functions", type=parse_functions, default="annotated")
@@ -135,12 +144,39 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def parse_arguments(
+    parser: argparse.ArgumentParser, arguments: Sequence[str]
+) -> tuple[argparse.Namespace, list[str]]:
+    wrapper_arguments: list[str] = []
+    clang_arguments: list[str] = []
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument == "--":
+            clang_arguments.extend(arguments[index:])
+            break
+
+        destination = clang_arguments
+        count = 1
+        if argument in OPTION_VALUES:
+            count = 2
+        else:
+            action = parser._option_string_actions.get(argument.partition("=")[0])
+            if action is not None:
+                destination = wrapper_arguments
+                if action.nargs != 0 and "=" not in argument:
+                    count = 2
+        destination.extend(arguments[index : index + count])
+        index += count
+    return parser.parse_args(wrapper_arguments), clang_arguments
+
+
 def resolve_executable(value: str) -> Path | None:
     candidate = Path(value).expanduser()
     if candidate.is_file():
-        return candidate.resolve()
+        return candidate.absolute()
     located = shutil.which(value)
-    return Path(located).resolve() if located else None
+    return Path(located).absolute() if located else None
 
 
 def find_clang(explicit: str | None, environment: dict[str, str]) -> Path:
@@ -193,10 +229,17 @@ def find_opt(
     clang_release: tuple[int, int, int],
 ) -> Path:
     requested = explicit or environment.get(OPT_ENV)
+    script_directory = Path(__file__).resolve().parent
+    project = script_directory.parent
     candidates = (
         [requested]
         if requested
         else [
+            os.fspath(
+                script_directory / ("a2mba-opt.exe" if os.name == "nt" else "a2mba-opt")
+            ),
+            os.fspath(project / "build" / "bin" / "Release" / "a2mba-opt.exe"),
+            os.fspath(project / "build" / "bin" / "a2mba-opt.exe"),
             os.fspath(clang.with_name("opt.exe" if os.name == "nt" else "opt")),
             "opt-21",
             "opt",
@@ -343,6 +386,7 @@ def make_options(arguments: argparse.Namespace) -> str:
         f"level={arguments.level}",
         f"hybrid={arguments.hybrid}",
         f"hybrid-layers={arguments.hybrid_layers}",
+        f"hybrid-region={arguments.hybrid_region}",
         f"functions={arguments.functions}",
         f"stats={'true' if arguments.stats else 'false'}",
     ]
@@ -378,9 +422,39 @@ def is_supported_target(target: str) -> bool:
     )
 
 
+def clang_argument_groups(
+    arguments: Sequence[str],
+) -> Iterator[tuple[int, str | None, list[str]]]:
+    index = 0
+    options = True
+    while index < len(arguments):
+        argument = arguments[index]
+        if options and argument == "--":
+            options = False
+            index += 1
+            continue
+        option = None
+        if (
+            options
+            and argument != "-"
+            and (argument.startswith("-") or argument in {"/Od", "/O1", "/O2", "/Ox"})
+        ):
+            option = argument
+        count = 2 if option in OPTION_VALUES else 1
+        if index + count > len(arguments):
+            fail(f"missing argument to {option}")
+        tokens = list(arguments[index : index + count])
+        if not options and argument.startswith("-") and argument != "-":
+            tokens[0] = f"./{argument}"
+        yield index, option, tokens
+        index += count
+
+
 def optimization_enabled(arguments: Sequence[str]) -> bool:
     enabled = False
-    for argument in arguments:
+    for _, argument, _ in clang_argument_groups(arguments):
+        if argument is None:
+            continue
         if argument in {"-O0", "/Od"}:
             enabled = False
         elif re.fullmatch(r"-O(?:[1-4]|g|s|z|fast)?", argument) or argument in {
@@ -404,103 +478,146 @@ def machine_codegen_requested(arguments: Sequence[str]) -> bool:
         "-print-resource-dir",
     }
     return not any(
-        argument in no_codegen or argument in driver_only for argument in arguments
+        option in no_codegen or option in driver_only
+        for _, option, _ in clang_argument_groups(arguments)
     )
+
+
+def expand_response_files(
+    clang: Path, opt: Path, arguments: Sequence[str], environment: dict[str, str]
+) -> list[str]:
+    if not any(argument.startswith("@") for argument in arguments):
+        return list(arguments)
+
+    driver_mode = "cl" if clang.stem.lower() in {"clang-cl", "cl"} else "gcc"
+    for argument in arguments:
+        if argument.startswith("--driver-mode="):
+            driver_mode = argument.partition("=")[2]
+    quoting = "windows" if driver_mode == "cl" else "posix"
+    try:
+        result = subprocess.run(
+            [os.fspath(opt), "--a2mba-expand-args", quoting, *arguments],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=environment,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        fail(f"could not expand compiler response files: {error}")
+    if result.returncode != 0:
+        fail(f"could not expand compiler response files: {result.stderr.strip()}")
+    try:
+        expanded = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        fail("a2mba-opt returned invalid compiler arguments")
+    if not isinstance(expanded, list) or any(
+        not isinstance(argument, str) for argument in expanded
+    ):
+        fail("a2mba-opt returned invalid compiler arguments")
+    for argument in expanded:
+        if argument.startswith("@"):
+            fail(f"response file could not be read: {argument[1:]}")
+    return expanded
 
 
 def source_argument_indices(arguments: Sequence[str]) -> list[int]:
     sources: list[int] = []
-    pending_option: str | None = None
-    after_options = False
     forced_language = False
+    working_directory = clang_working_directory(arguments)
 
-    for index, argument in enumerate(arguments):
-        if pending_option:
-            if pending_option == "-x":
-                forced_language = argument != "none"
-            pending_option = None
+    for index, option, tokens in clang_argument_groups(arguments):
+        if option is not None:
+            if option == "-x":
+                forced_language = tokens[1] != "none"
+            elif option.startswith("-x") and len(option) > 2:
+                forced_language = option[2:] != "none"
             continue
-        if argument == "--":
-            after_options = True
-            continue
-        if not after_options and argument in OPTION_VALUES:
-            pending_option = argument
-            continue
-        if not after_options and argument.startswith("-"):
-            continue
+        argument = tokens[0]
         if argument == "-":
             sources.append(index)
             continue
 
         suffix = Path(argument).suffix.lower()
-        if suffix in SOURCE_SUFFIXES or (forced_language and Path(argument).is_file()):
+        if suffix in SOURCE_SUFFIXES or (
+            forced_language and (working_directory / argument).is_file()
+        ):
             sources.append(index)
     return sources
+
+
+def clang_working_directory(arguments: Sequence[str]) -> Path:
+    directory = Path.cwd()
+    for _, option, tokens in clang_argument_groups(arguments):
+        if option == "-working-directory":
+            directory = Path(tokens[1])
+        elif option is not None and option.startswith("-working-directory="):
+            directory = Path(option.partition("=")[2])
+    return directory.absolute()
 
 
 def strip_output_and_action(
     arguments: Sequence[str], source_indices: set[int], kept_source: int
 ) -> list[str]:
     stripped: list[str] = []
-    skip_value = False
-    for index, argument in enumerate(arguments):
-        if skip_value:
-            skip_value = False
-            continue
+    for index, option, tokens in clang_argument_groups(arguments):
         if index in source_indices and index != kept_source:
             continue
-        if argument in {"-o", "--output"}:
-            skip_value = True
+        if option is None:
+            stripped.extend(tokens)
             continue
-        if argument.startswith("--output="):
+        if option in {"-o", "--output", "-c", "-S", "-emit-llvm"}:
+            continue
+        if option.startswith("--output="):
             continue
         if (
-            argument.startswith("-o")
-            and len(argument) > 2
-            and not argument.startswith(("-objc", "-object"))
+            option.startswith("-o")
+            and len(option) > 2
+            and not option.startswith(("-objc", "-object"))
         ):
             continue
-        if argument in {"-c", "-S", "-emit-llvm"}:
-            continue
-        stripped.append(argument)
+        stripped.extend(tokens)
     return stripped
 
 
 def clang_output(arguments: Sequence[str]) -> str | None:
-    for index, argument in enumerate(arguments):
-        if argument in {"-o", "--output"} and index + 1 < len(arguments):
-            return arguments[index + 1]
-        if argument.startswith("--output="):
-            return argument.partition("=")[2]
-        if (
+    output = None
+    for _, argument, tokens in clang_argument_groups(arguments):
+        if argument is None:
+            continue
+        if argument in {"-o", "--output"}:
+            output = tokens[1]
+        elif argument.startswith("--output="):
+            output = argument.partition("=")[2]
+        elif (
             argument.startswith("-o")
             and len(argument) > 2
             and not argument.startswith(("-objc", "-object"))
         ):
-            return argument[2:]
-    return None
+            output = argument[2:]
+    return output
 
 
-def dependency_target_arguments(
-    arguments: Sequence[str], source_index: int
-) -> list[str]:
-    if not any(argument in {"-MD", "-MMD"} for argument in arguments):
+def dependency_arguments(arguments: Sequence[str], source_index: int) -> list[str]:
+    options = [option for _, option, _ in clang_argument_groups(arguments) if option]
+    if not any(option in {"-MD", "-MMD"} for option in options):
         return []
-    if any(
+
+    source = arguments[source_index]
+    output = clang_output(arguments)
+    target = output if output is not None else f"{Path(source).stem}.o"
+    added = []
+    if not any(option.startswith("-MF") for option in options):
+        added.extend(["-MF", os.fspath(Path(target).with_suffix(".d"))])
+    if not any(
         argument in {"-MT", "-MQ"}
         or (argument.startswith(("-MT", "-MQ")) and len(argument) > 3)
-        for argument in arguments
+        for argument in options
     ):
-        return []
-
-    target = clang_output(arguments)
-    if target:
-        return ["-MT", target]
-    source = arguments[source_index]
-    if source == "-":
-        return []
-    extension = ".s" if "-S" in arguments else (".obj" if os.name == "nt" else ".o")
-    return ["-MT", f"{Path(source).stem}{extension}"]
+        added.extend(["-MQ", target])
+    return added
 
 
 def final_codegen_arguments(
@@ -509,32 +626,30 @@ def final_codegen_arguments(
     final_arguments = ["-Qunused-arguments", "-Xclang", "-disable-llvm-passes"]
     dependency_flags = {"-MD", "-MMD", "-MG", "-MP"}
     dependency_values = {"-MF", "-MJ", "-MQ", "-MT"}
-    skip_value = False
 
-    for index, argument in enumerate(arguments):
-        if skip_value:
-            skip_value = False
-            continue
-        if argument in dependency_values or argument == "-x":
-            skip_value = True
-            continue
-        if argument in dependency_flags:
-            continue
-        if argument.startswith("-x") and len(argument) > 2:
-            continue
-        if argument.startswith(("-MF", "-MJ", "-MQ", "-MT")) and len(argument) > 3:
-            continue
+    for index, option, tokens in clang_argument_groups(arguments):
         if index in protected_bitcode:
             final_arguments.append(os.fspath(protected_bitcode[index]))
-        else:
-            final_arguments.append(argument)
+            continue
+        if option is None:
+            final_arguments.extend(tokens)
+            continue
+        if option in dependency_values or option == "-x":
+            continue
+        if option in dependency_flags:
+            continue
+        if option.startswith("-x") and len(option) > 2:
+            continue
+        if option.startswith(("-MF", "-MJ", "-MQ", "-MT")) and len(option) > 3:
+            continue
+        final_arguments.extend(tokens)
     return final_arguments
 
 
 def run_staged_compile(
     clang: Path,
     opt: Path,
-    plugin: Path,
+    plugin: Path | None,
     clang_arguments: Sequence[str],
     source_indices: Sequence[int],
     environment: dict[str, str],
@@ -544,9 +659,29 @@ def run_staged_compile(
         commands: list[list[str]] = []
         protected_by_source: dict[int, Path] = {}
         source_index_set = set(source_indices)
+        options = {option for _, option, _ in clang_argument_groups(clang_arguments)}
+        working_directory = clang_working_directory(clang_arguments)
+        llvm_output = "-emit-llvm" in options
+        if llvm_output and len(source_indices) != 1:
+            print(
+                "a2mba-clang: error: staged LLVM output accepts one source file",
+                file=sys.stderr,
+            )
+            return 2
+
         for sequence, source_index in enumerate(source_indices):
             input_bitcode = temporary_path / f"input-{sequence}.bc"
             protected_bitcode = temporary_path / f"protected-{sequence}.bc"
+            if llvm_output:
+                requested_output = clang_output(clang_arguments)
+                if requested_output:
+                    protected_bitcode = Path(requested_output)
+                else:
+                    source = clang_arguments[source_index]
+                    suffix = ".ll" if "-S" in options else ".bc"
+                    protected_bitcode = Path(Path(source).name).with_suffix(suffix)
+                if working_directory != Path.cwd() and protected_bitcode != Path("-"):
+                    protected_bitcode = working_directory / protected_bitcode
             protected_by_source[source_index] = protected_bitcode
             commands.append(
                 [
@@ -555,30 +690,52 @@ def run_staged_compile(
                     *strip_output_and_action(
                         clang_arguments, source_index_set, source_index
                     ),
-                    *dependency_target_arguments(clang_arguments, source_index),
+                    *dependency_arguments(clang_arguments, source_index),
                     "-emit-llvm",
                     "-c",
                     "-o",
                     os.fspath(input_bitcode),
                 ]
             )
+            opt_command = [os.fspath(opt)]
+            if plugin is not None:
+                opt_command.append(f"-load-pass-plugin={plugin}")
+            opt_command.extend(["-passes=a2mba"])
+            if llvm_output and "-S" in options:
+                opt_command.append("-S")
+            opt_command.extend(
+                [os.fspath(input_bitcode), "-o", os.fspath(protected_bitcode)]
+            )
+            commands.append(opt_command)
+        if not llvm_output:
+            final_arguments = final_codegen_arguments(
+                clang_arguments, protected_by_source
+            )
+            if clang_output(clang_arguments) is None and any(
+                action in options for action in ("-c", "-S")
+            ):
+                source = clang_arguments[source_indices[0]]
+                suffix = ".s" if "-S" in options else ".o"
+                final_arguments.extend(["-o", Path(source).stem + suffix])
             commands.append(
                 [
-                    os.fspath(opt),
-                    f"-load-pass-plugin={plugin}",
-                    "-passes=a2mba",
-                    os.fspath(input_bitcode),
-                    "-o",
-                    os.fspath(protected_bitcode),
+                    os.fspath(clang),
+                    *final_arguments,
                 ]
             )
-        commands.append(
-            [
-                os.fspath(clang),
-                *final_codegen_arguments(clang_arguments, protected_by_source),
-            ]
-        )
-        for command in commands:
+        for sequence, command in enumerate(commands):
+            if (
+                os.name == "nt"
+                and command[0] == os.fspath(clang)
+                and len(subprocess.list2cmdline(command)) > 30000
+            ):
+                response_file = temporary_path / f"command-{sequence}.rsp"
+                quoted = [
+                    '"' + argument.replace("\\", "\\\\").replace('"', '\\"') + '"'
+                    for argument in command[1:]
+                ]
+                response_file.write_text("\n".join(quoted), encoding="utf-8")
+                command = [os.fspath(clang), "--rsp-quoting=posix", f"@{response_file}"]
             try:
                 result = subprocess.run(command, check=False, env=environment)
             except OSError as error:
@@ -595,7 +752,7 @@ def run_staged_compile(
 def run_doctor(
     clang: Path,
     opt: Path | None,
-    plugin: Path,
+    plugin: Path | None,
     version: tuple[int, int, int],
     environment: dict[str, str],
 ) -> int:
@@ -611,6 +768,17 @@ def run_doctor(
         input_bitcode = temporary_path / "input.bc"
         protected_bitcode = temporary_path / "protected.bc"
         output_object = temporary_path / "output.obj"
+        opt_command = [os.fspath(opt)]
+        if plugin is not None:
+            opt_command.append(f"-load-pass-plugin={plugin}")
+        opt_command.extend(
+            [
+                "-passes=a2mba",
+                os.fspath(input_bitcode),
+                "-o",
+                os.fspath(protected_bitcode),
+            ]
+        )
         commands = [
             [
                 os.fspath(clang),
@@ -623,14 +791,7 @@ def run_doctor(
                 "-o",
                 os.fspath(input_bitcode),
             ],
-            [
-                os.fspath(opt),
-                f"-load-pass-plugin={plugin}",
-                "-passes=a2mba",
-                os.fspath(input_bitcode),
-                "-o",
-                os.fspath(protected_bitcode),
-            ],
+            opt_command,
             [
                 os.fspath(clang),
                 "-O1",
@@ -697,11 +858,12 @@ def run_doctor(
     print(f"clang: {clang}")
     print(f"version: {version_text}")
     print(f"target: {target}")
-    print(f"plugin: {plugin}")
+    if plugin:
+        print(f"plugin: {plugin}")
     if opt:
-        print(f"opt: {opt}")
+        print(f"driver: {opt}")
         print("pipeline: staged")
-    print(f"plugin load: {'ok' if plugin_loaded else 'failed'}")
+    print(f"pass load: {'ok' if plugin_loaded else 'failed'}")
     print(f"AAMBA: {'supported' if target_supported else 'unsupported'}")
     print(f"AGT: {'supported' if target_supported else 'unsupported'}")
     print("LTO: disabled")
@@ -732,19 +894,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         raw_arguments[0] = "--doctor"
 
     parser = build_parser()
-    arguments, clang_arguments = parser.parse_known_args(raw_arguments)
+    arguments, clang_arguments = parse_arguments(parser, raw_arguments)
     if arguments.doctor and clang_arguments:
         parser.error("--doctor does not accept Clang arguments")
 
     environment = os.environ.copy()
     opt: Path | None = None
+    plugin: Path | None = None
     try:
         clang = find_clang(arguments.clang, environment)
         major, minor, patch, _ = clang_version(clang)
         version = (major, minor, patch)
-        plugin = find_plugin(arguments.plugin, environment, version)
-        if arguments.doctor and os.name == "nt":
+        if os.name == "nt":
+            if arguments.plugin:
+                fail("--plugin is not used on Windows; pass --opt with a2mba-opt.exe")
             opt = find_opt(arguments.opt, environment, clang, version)
+        else:
+            plugin = find_plugin(arguments.plugin, environment, version)
     except WrapperError as error:
         print(f"a2mba-clang: error: {error}", file=sys.stderr)
         return 2
@@ -753,28 +919,36 @@ def main(argv: Sequence[str] | None = None) -> int:
     if arguments.doctor:
         return run_doctor(clang, opt, plugin, version, environment)
 
-    if os.name == "nt" and machine_codegen_requested(clang_arguments):
+    clang_options: set[str] = set()
+    if os.name == "nt":
+        assert opt is not None
+        try:
+            clang_arguments = expand_response_files(
+                clang, opt, clang_arguments, environment
+            )
+            clang_options = {
+                option
+                for _, option, _ in clang_argument_groups(clang_arguments)
+                if option is not None
+            }
+        except WrapperError as error:
+            print(f"a2mba-clang: error: {error}", file=sys.stderr)
+            return 2
+
+    if os.name == "nt" and (
+        machine_codegen_requested(clang_arguments) or "-emit-llvm" in clang_options
+    ):
         if any(
             argument == "-flto" or argument.startswith("-flto=")
-            for argument in clang_arguments
+            for argument in clang_options
         ):
             print("a2mba-clang: error: LTO is not supported", file=sys.stderr)
             return 2
 
         source_indices = source_argument_indices(clang_arguments)
-        if (
-            any(argument.startswith("@") for argument in clang_arguments)
-            and not source_indices
-        ):
-            print(
-                "a2mba-clang: error: source paths inside response files are not "
-                "supported by the staged Windows pipeline",
-                file=sys.stderr,
-            )
-            return 2
         if optimization_enabled(clang_arguments) and source_indices:
             if len(source_indices) > 1 and any(
-                action in clang_arguments for action in ("-c", "-S")
+                action in clang_options for action in ("-c", "-S")
             ):
                 print(
                     "a2mba-clang: error: compile-only Windows invocations accept "
@@ -782,20 +956,29 @@ def main(argv: Sequence[str] | None = None) -> int:
                     file=sys.stderr,
                 )
                 return 2
-            try:
-                opt = find_opt(arguments.opt, environment, clang, version)
-            except WrapperError as error:
-                print(f"a2mba-clang: error: {error}", file=sys.stderr)
-                return 2
+            assert opt is not None
             return run_staged_compile(
                 clang,
                 opt,
-                plugin,
+                None,
                 clang_arguments,
                 source_indices,
                 environment,
             )
 
+    if os.name == "nt":
+        try:
+            result = subprocess.run(
+                [os.fspath(clang), *clang_arguments], check=False, env=environment
+            )
+        except OSError as error:
+            print(
+                f"a2mba-clang: error: could not execute Clang: {error}", file=sys.stderr
+            )
+            return 2
+        return relay_child_status(result.returncode)
+
+    assert plugin is not None
     try:
         result = subprocess.run(
             [os.fspath(clang), f"-fpass-plugin={plugin}", *clang_arguments],

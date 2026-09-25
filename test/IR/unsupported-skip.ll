@@ -1,4 +1,4 @@
-; RUN: env A2MBA_OPTIONS="mode=verified;level=light;seed=22;functions=all;transform=rule-explosion;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o - | %FileCheck %s
+; RUN: env A2MBA_OPTIONS="mode=verified;level=light;seed=22;functions=all;transform=rule-explosion;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s"
 
 target triple = "x86_64-unknown-linux-gnu"
 

@@ -85,6 +85,14 @@ llvm::Expected<HybridLayerMode> parseHybridLayerMode(llvm::StringRef value) {
   return invalidValue("hybrid-layers", value);
 }
 
+llvm::Expected<HybridRegionMode> parseHybridRegionMode(llvm::StringRef value) {
+  if (value == "none")
+    return HybridRegionMode::None;
+  if (value == "stateful")
+    return HybridRegionMode::Stateful;
+  return invalidValue("hybrid-region", value);
+}
+
 } // namespace
 
 llvm::Expected<Config> Config::loadFromEnvironment() {
@@ -175,6 +183,14 @@ llvm::Expected<Config> Config::loadFromEnvironment() {
       continue;
     }
 
+    if (key == "hybrid-region") {
+      auto hybridRegion = parseHybridRegionMode(value);
+      if (!hybridRegion)
+        return hybridRegion.takeError();
+      config.hybridRegion = *hybridRegion;
+      continue;
+    }
+
     if (key == "seed") {
       auto seed = parseSeed(value);
       if (!seed)
@@ -247,6 +263,11 @@ llvm::Expected<Config> Config::loadFromEnvironment() {
   } else if (config.hybridLayers != HybridLayerMode::None) {
     return llvm::createStringError(llvm::errc::invalid_argument,
                                    "hybrid-layers requires hybrid=ir or hybrid=native");
+  }
+
+  if (config.hybridMode == HybridMode::Off && config.hybridRegion != HybridRegionMode::None) {
+    return llvm::createStringError(llvm::errc::invalid_argument,
+                                   "hybrid-region requires hybrid=ir or hybrid=native");
   }
 
   return config;
@@ -327,6 +348,16 @@ llvm::StringRef toString(HybridLayerMode mode) {
     return "context-sbb";
   case HybridLayerMode::ContextRandom:
     return "context-random";
+  }
+  return "unknown";
+}
+
+llvm::StringRef toString(HybridRegionMode mode) {
+  switch (mode) {
+  case HybridRegionMode::None:
+    return "none";
+  case HybridRegionMode::Stateful:
+    return "stateful";
   }
   return "unknown";
 }

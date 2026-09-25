@@ -150,8 +150,7 @@ endfunction()
 
 a2mba_enable_sanitizers(A2MBAHybridCore)
 
-set(A2MBA_SOURCES
-  lib/Plugin.cpp
+set(A2MBA_PASS_SOURCES
   lib/A2MBA.cpp
   lib/Config.cpp
   lib/Context.cpp
@@ -162,69 +161,59 @@ set(A2MBA_SOURCES
   lib/AGT.cpp
   lib/Hybrid.cpp
   lib/Metadata.cpp
+  lib/PassRegistration.cpp
   lib/Statistics.cpp
 )
 
-# The official Windows SDK disables AddLLVM's plugin helper, so build the
-# loadable DLL directly and export the New-PM entry point explicitly.
-set(A2MBA_STATIC_LLVM_FALLBACK OFF)
+set(A2MBA_STANDALONE_DRIVER OFF)
 if(WIN32 AND NOT LLVM_ENABLE_PLUGINS)
-  set(A2MBA_STATIC_LLVM_FALLBACK ON)
-  set(A2MBA_LLVM_COMPONENTS
-    Analysis
-    Core
-    Passes
-    ScalarOpts
-    Support
-    TransformUtils
+  set(A2MBA_STANDALONE_DRIVER ON)
+  add_executable(a2mba-opt
+    tools/a2mba-opt.cpp
+    ${A2MBA_PASS_SOURCES}
   )
-
-  add_library(A2MBA MODULE ${A2MBA_SOURCES})
-  llvm_update_compile_flags(A2MBA)
-  set_output_directory(A2MBA
+  llvm_update_compile_flags(a2mba-opt)
+  set_output_directory(a2mba-opt
     BINARY_DIR "${LLVM_RUNTIME_OUTPUT_INTDIR}"
     LIBRARY_DIR "${LLVM_LIBRARY_OUTPUT_INTDIR}"
   )
-  set_target_properties(A2MBA PROPERTIES
-    PREFIX ""
-    SUFFIX "${CMAKE_SHARED_MODULE_SUFFIX}"
-  )
-
-  set(A2MBA_EXPORTS_FILE "${CMAKE_CURRENT_BINARY_DIR}/A2MBA.exports.def")
-  file(GENERATE OUTPUT "${A2MBA_EXPORTS_FILE}"
-    CONTENT "EXPORTS\n  llvmGetPassPluginInfo\n"
-  )
-  target_sources(A2MBA PRIVATE "${A2MBA_EXPORTS_FILE}")
-  target_compile_definitions(A2MBA PRIVATE A2MBA_STATIC_LLVM_PLUGIN=1)
-
-  llvm_map_components_to_libnames(A2MBA_LLVM_LIBS
-    ${A2MBA_LLVM_COMPONENTS}
-  )
-  target_link_libraries(A2MBA PRIVATE ${A2MBA_LLVM_LIBS})
+  target_link_libraries(a2mba-opt PRIVATE LLVMOptDriver)
+  set(A2MBA_MAIN_TARGET a2mba-opt)
 else()
-  add_llvm_pass_plugin(A2MBA ${A2MBA_SOURCES})
+  add_llvm_pass_plugin(A2MBA
+    lib/Plugin.cpp
+    ${A2MBA_PASS_SOURCES}
+  )
+  set(A2MBA_MAIN_TARGET A2MBA)
 endif()
 
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND "${LLVM_DEFINITIONS}")
-target_compile_options(A2MBA PRIVATE ${LLVM_DEFINITIONS_LIST})
-target_compile_features(A2MBA PRIVATE cxx_std_20)
-target_compile_definitions(A2MBA
+target_compile_options(${A2MBA_MAIN_TARGET} PRIVATE ${LLVM_DEFINITIONS_LIST})
+target_compile_features(${A2MBA_MAIN_TARGET} PRIVATE cxx_std_20)
+target_compile_definitions(${A2MBA_MAIN_TARGET}
   PRIVATE A2MBA_VERSION_STRING="${PROJECT_VERSION}"
 )
-target_include_directories(A2MBA PRIVATE "${PROJECT_SOURCE_DIR}/include")
-target_include_directories(A2MBA SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
-target_link_libraries(A2MBA PRIVATE A2MBAHybridCore)
+target_include_directories(${A2MBA_MAIN_TARGET} PRIVATE
+  "${PROJECT_SOURCE_DIR}/include"
+  "${PROJECT_SOURCE_DIR}/lib"
+)
+target_include_directories(${A2MBA_MAIN_TARGET} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+target_link_libraries(${A2MBA_MAIN_TARGET} PRIVATE A2MBAHybridCore)
 
 if(WIN32)
-  target_link_libraries(A2MBA PRIVATE bcrypt)
+  target_link_libraries(${A2MBA_MAIN_TARGET} PRIVATE bcrypt)
 endif()
 
-a2mba_enable_sanitizers(A2MBA)
+a2mba_enable_sanitizers(${A2MBA_MAIN_TARGET})
 
-install(TARGETS A2MBA
-  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/a2mba"
-  RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}/a2mba"
-)
+if(A2MBA_STANDALONE_DRIVER)
+  install(TARGETS a2mba-opt RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+else()
+  install(TARGETS A2MBA
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/a2mba"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}/a2mba"
+  )
+endif()
 if(WIN32)
   install(PROGRAMS tools/a2mba-clang.py TYPE BIN)
 else()
@@ -245,11 +234,18 @@ install(DIRECTORY LICENSES
 install(FILES
   README.md
   CITATION.cff
+  THIRD_PARTY_NOTICES.md
   DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/a2mba"
+)
+install(FILES .github/SECURITY.md
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/a2mba/.github"
 )
 install(DIRECTORY docs
   DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/a2mba"
-  FILES_MATCHING PATTERN "*.md"
+  FILES_MATCHING
+  PATTERN "*.md"
+  PATTERN "*.json"
+  PATTERN "*.png"
 )
 
 if(A2MBA_BUILD_TESTS)

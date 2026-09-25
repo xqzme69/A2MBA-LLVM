@@ -17,6 +17,14 @@ MAX_QUERY_BYTES = 4_000_000
 DEFAULT_TIMEOUT_SECONDS = 8.0
 
 
+def packaged_z3_library_names() -> tuple[str, ...]:
+    if sys.platform == "win32":
+        return ("libz3.dll", "z3.dll")
+    if sys.platform == "darwin":
+        return ("libz3.dylib", "z3.dylib", "libz3.so")
+    return ("libz3.so", "libz3.so.4.13", "libz3.dll", "z3.dll")
+
+
 def load_z3_library() -> ctypes.CDLL:
     library_candidates = [
         os.environ.get("Z3_LIBRARY"),
@@ -28,7 +36,7 @@ def load_z3_library() -> ctypes.CDLL:
         library_candidates += [
             str(package_root / directory / filename)
             for directory in ("lib", "bin", "")
-            for filename in ("libz3.so", "libz3.dylib", "libz3.dll", "z3.dll")
+            for filename in packaged_z3_library_names()
         ]
     for library_path in filter(None, library_candidates):
         try:

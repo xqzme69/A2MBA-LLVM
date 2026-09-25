@@ -1,8 +1,8 @@
-; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=71;functions=all;transform=rule-explosion;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o %t.same-a.ll
-; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=71;functions=all;transform=rule-explosion;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o %t.same-b.ll
-; RUN: diff %t.same-a.ll %t.same-b.ll
-; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=72;functions=all;transform=rule-explosion;probability=100;depth=1" %a2mba_opt -passes=a2mba -S %s -o %t.different.ll
-; RUN: not diff %t.same-a.ll %t.different.ll
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=71;functions=all;transform=rule-explosion;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o "%t.same-a.ll"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=71;functions=all;transform=rule-explosion;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o "%t.same-b.ll"
+; RUN: diff "%t.same-a.ll" "%t.same-b.ll"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=72;functions=all;transform=rule-explosion;probability=100;depth=1" %a2mba_opt -passes=a2mba -S "%s" -o "%t.different.ll"
+; RUN: not diff "%t.same-a.ll" "%t.different.ll"
 
 target triple = "x86_64-unknown-linux-gnu"
 

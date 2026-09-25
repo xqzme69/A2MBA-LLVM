@@ -2,19 +2,21 @@
 
 ## Goal
 
-A²MBA raises the cost of automated analysis for selected integer data-flow expressions through:
+A²MBA targets automated analysis of selected integer expressions. It uses:
 
 - x86 architectural state that a stateless algebraic model may omit;
 - parameterized modular identities that reduce reuse of constant-specific rewrite rules;
-- parameterized trap and trigger contexts that preserve the source value but punish an unsound generalized shift rule;
-- seeded or OS-random transform selection to vary protected outputs.
+- parameterized trap and trigger contexts that preserve the source value but expose an unsound generalized shift rule;
+- input-dependent nonlinear multiplication that falls outside the linear MBA basis;
+- optional state carried across a conservative straight-line region instead of independent per-operation encodings;
+- seeded or OS-random transform selection to vary protected outputs;
 - bounded equality-saturation and optional native expansion to vary the base expression before context-sensitive layers are added.
 
-The intended property is higher analysis cost, not secrecy or irreversibility.
+The aim is to increase the work needed to analyze them. It does not make the code secret or irreversible.
 
 ## Attacker
 
-Assume a Man-at-the-End attacker controls the machine running the program and can:
+Assume the attacker controls the machine running the program. They can:
 
 - read and modify binaries and memory;
 - execute, trace, emulate, and debug the program repeatedly;
@@ -22,7 +24,7 @@ Assume a Man-at-the-End attacker controls the machine running the program and ca
 - use disassemblers, symbolic execution, SMT, algebraic MBA simplifiers, and learned rewrite systems;
 - recognize that A²MBA was used and inspect this source code.
 
-Assume the attacker knows the plugin, algorithms, metadata names, and wrapper configuration.
+The attacker also knows this repository, its algorithms, metadata names, and wrapper configuration.
 
 ## Defender assumptions
 
@@ -35,17 +37,21 @@ Assume the attacker knows the plugin, algorithms, metadata names, and wrapper co
 
 ## Expected resistance
 
-A stateless simplifier that treats ADC as ordinary addition can derive the wrong result. Context Trap targets a different modeling error: generalizing a rule learned from its masked trap arm while treating arithmetic right shift as logical right shift. Random shifts, selected-bit masks, and reconstruction trees prevent one syntactic rule from covering every site. Handling the transform correctly still requires signed-shift semantics, fixed-width arithmetic, and local context in the analysis model.
+A simplifier that treats ADC as ordinary addition can get the wrong result because it loses carry. Context Trap targets a separate mistake: learning a rule from the masked trap arm and applying it to the trigger without its context, or treating arithmetic right shift as logical. Shifts, masks, and reconstruction trees vary between sites. A sound simplifier needs the local context and fixed-width signed-shift semantics.
 
-None of this is a permanent barrier. An architecture-aware emulator or symbolic executor can model flags, modular inverses are recognizable, and a human can identify the assembly templates. A deobfuscator can also learn guarded rules instead of context-free ones.
+The nonlinear envelope builds an odd runtime key from a multiplication with input-dependent operands on both sides. The emitted expression is outside the linear-MBA grammar, but it still computes the source function and may be canceled algebraically. The post-`-O3` regression traces input dependencies; it checks the surviving IR shape, not how hard that IR is to simplify.
 
-## Windows compatibility boundary
+Stateful regions remove the convenient boundary between separately protected operations. One decoded result changes the state for the next encoding, and intermediate values stay inside the region. An analyzer that keeps the whole region can still model its transitions. The state is not a cryptographic secret.
 
-The official portable Windows LLVM 21.1.8 package disables LLVM's normal plugin build path. A²MBA's compatibility DLL links the required LLVM components statically, remains pinned until Clang or `opt` exits, and does not query host analysis managers across that boundary. Pinning prevents compiler-process lifetime errors; it adds no security, and the produced application does not retain the DLL.
+An architecture-aware emulator or symbolic executor can model the flags. A nonlinear simplifier may prove the inverse relation; a rule learner can use guards instead of generalizing away the context. The gadget families can also be recognized by a human.
 
-For optimized machine-code builds, the Windows wrapper runs A²MBA under `opt` between two Clang stages. The protected module crosses into the backend as serialized bitcode, not as LLVM objects allocated by the compatibility DLL. The final Clang stage disables LLVM optimization passes so the protected form is not fed through a second optimizer pipeline. `--doctor` exercises this complete staged path, including object generation.
+## Windows driver boundary
 
-LLVM object identities cannot safely cross between the host and the DLL's static LLVM copy, so this path does not pass an `AttributeList` back to add `noredzone`. For Linux-target IR, each affected AAMBA primitive uses one atomic assembly unit: flag-neutral `leaq -128(%rsp), %rsp`, the existing `pushfq`/`popfq` sandbox, then `leaq 128(%rsp), %rsp`. This clears the SysV red zone before stack use without changing flag preservation. Plugin-enabled builds keep the normal `noredzone` attribute.
+The official portable Windows LLVM 21.1.8 package disables loadable plugins. `a2mba-opt.exe` links LLVM's opt entry point and the pass into one driver, avoiding two static LLVM copies sharing objects in one process. This is a build correctness measure, not a protection layer. The compiled program does not depend on the driver.
+
+For optimized Windows builds, Clang first writes bitcode, `a2mba-opt.exe` protects it, and Clang lowers the serialized result with further LLVM optimization disabled. `--doctor` tests that path through object generation.
+
+For Linux-target IR, stack-based flag preservation marks the function `noredzone`. Flag-clobbering variants do not touch the stack.
 
 ## Out of scope
 
@@ -63,23 +69,24 @@ A²MBA does not claim to provide:
 
 ## Mode choice
 
-Use `verified` outside paper-oriented experiments. It excludes the disputed RCR/RCL carry-dependence argument and keeps Context Trap as a universal bit-vector identity. `paper` adds a documented comparison transform; it is not a stronger setting.
+Use `verified` for normal builds. It leaves out the RCR/RCL carry-dependence claim and uses a Context Trap identity valid for all fixed-width inputs. `paper` adds the comparison transform; it is not a stronger protection setting.
 
-Hybrid mode is experimental and off by default. Its extraction score measures structural properties and cost, not resistance. A sound simplifier can still recover the original value, and native expansion does not turn MBA into encryption.
+Hybrid mode is experimental and off by default. Its extraction score favors certain expression shapes and costs; it is not a resilience score. The nonlinear envelope removes the old all-linear syntax, not the possibility of a sound nonlinear simplification. Stateful regions make per-operation interpolation less representative, while whole-region symbolic execution remains possible. Native lowering is not encryption.
 
-Start with the lightest profile that meets a measured need. Heavy transformation can raise runtime and binary size enough to become a signature of its own.
+Measure on the target program before choosing a profile. Heavy transforms can add substantial runtime and binary size and may themselves stand out.
 
 ## Failure behavior
 
-Unsupported or unproven candidates are skipped, never approximately transformed. Malformed configuration is a hard plugin error. The wrapper rejects an unsupported LLVM major or a mismatched Windows `opt` before compilation, and `--doctor` fails if the selected pipeline cannot produce an object.
+The pass skips unsupported or unproven candidates. Bad configuration fails instead of silently weakening the requested transform. The wrapper rejects an unsupported LLVM major or mismatched Windows driver, and `--doctor` fails if the pipeline cannot produce an object.
 
-Statistics and diagnostics describe the build. Selection and skip counts are not a security score.
+Selection and skip counts tell you what was transformed, not how resistant it is.
 
 ## Deployment guidance
 
 - Annotate narrow, high-value functions instead of selecting an entire application by default.
 - Keep reference and protected functional tests, including edge values and real workloads.
 - Run `--doctor`, the lit/CTest suite, and code-generation checks with the exact release toolchain.
+- Keep the post-`-O3` nonlinear dependency and architectural-diversity gates enabled; instruction counts or binary size alone do not establish hardening.
 - Keep lit's `clang`, `opt`, `llc`, and normally `FileCheck` on that same LLVM 21 release. Use `A2MBA_FILECHECK_EXECUTABLE` only when FileCheck must be supplied separately.
 - Measure deployment overhead on the target hardware. The paper's factors describe a different implementation.
 - Strip or retain LLVM metadata according to normal release policy, but do not treat stripping as a security boundary.

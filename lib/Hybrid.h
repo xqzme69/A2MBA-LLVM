@@ -48,9 +48,14 @@ struct Layers {
   std::vector<ContextCut> contextCuts;
   std::optional<ContextTrapParameters> context;
   std::optional<ArchitecturalLayer> architectural;
+  NonlinearEnvelopeParameters nonlinear;
 };
 
 llvm::Expected<Plan> plan(llvm::BinaryOperator &operation, const Options &options);
+llvm::Expected<llvm::Value *> emitWithOperands(llvm::IRBuilderBase &builder,
+                                               llvm::BinaryOperator &operation, const Plan &plan,
+                                               llvm::Value &leftOperand, llvm::Value &rightOperand,
+                                               const Layers &layers = {});
 llvm::Expected<llvm::Value *> emit(llvm::IRBuilderBase &builder, llvm::BinaryOperator &operation,
                                    const Plan &plan, const Layers &layers = {});
 

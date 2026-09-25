@@ -1,0 +1,2 @@
+# REQUIRES: a2mba-driver, clang, host-executable, x86-registered-target
+# RUN: %python "%S/../tools/check_wrapper_compile.py"

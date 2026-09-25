@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "date": "2026-09-19",
+  "project": "A2MBA-LLVM",
+  "llvm_version": "21.1.8",
+  "configuration": {
+    "mode": "verified",
+    "level_matrix": "5 complexity presets, 20 expressions each",
+    "hybrid": "ir",
+    "hybrid_region": "stateful",
+    "hybrid_layers": "none",
+    "oracle": "sampled",
+    "flat_expression_node_limit": 100000
+  },
+  "toolchain": {
+    "pass_entry": "standalone driver",
+    "pass_entry_sha256": "707d7af58165dd8dca79e2fe399c5e2154a485e0591962f73fa74a9f49e37bb0"
+  },
+  "corpus": {
+    "expressions": 100,
+    "changed": 100,
+    "unchanged": 0,
+    "equivalence_sampled": 100,
+    "equivalence_unknown": 0,
+    "mean_original_nodes": 7.05,
+    "mean_obfuscated_nodes": 419.02,
+    "mean_growth_factor": 54.327438,
+    "flat_expression_count": 0,
+    "flat_expression_skipped": {
+      "expanded-node-count-exceeds-limit": 100
+    },
+    "minimum_expanded_nodes": 351382325827
+  },
+  "regression_probe": {
+    "function": "target_basic_001",
+    "source_shape": "(x ^ x) - y",
+    "original_nodes": 4,
+    "obfuscated_dag_nodes": 185,
+    "expanded_nodes": 258677935894761,
+    "post_o3_variable_multiplications": 48
+  },
+  "limits": [
+    "This build predates operand stabilization for LLVM undef values; its structural counts and concrete-input samples are historical.",
+    "This is a corpus and optimizer gate, not a replacement for a pinned external-tool benchmark.",
+    "GAMBA, CoBRA, and ProMBA expression runs require bounded single-return expressions; this stateful corpus exported none under the configured limit.",
+    "The sampled oracle checks the generated corpus inputs but is not a full proof of the LLVM pass."
+  ]
+}

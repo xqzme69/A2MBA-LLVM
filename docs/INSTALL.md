@@ -9,11 +9,11 @@
 - Z3 for build-time verification of the hybrid rule table. The pinned `z3-solver` package satisfies this requirement.
 - An x86-64 Linux or Windows target for architectural transforms.
 
-LLVM's C++ ABI and plugin APIs are version-sensitive. Build the plugin against the Clang/LLVM installation that will load it. Matching `.so` or `.dll` extensions prove nothing; `--doctor` performs an actual load test.
+Use the same Clang/LLVM installation to build and run the pass. On Linux it loads the plugin; on Windows it runs `a2mba-opt.exe`. The matching `21` in two filenames is not enough to establish compatibility. `--doctor` checks by running the pass and generating an object.
 
 ## Source build
 
-Locate the LLVM CMake package directory. On installations that provide `llvm-config-21`:
+Find LLVM's CMake package directory. If `llvm-config-21` is available:
 
 ```bash
 llvm-config-21 --cmakedir
@@ -29,7 +29,7 @@ cmake -S . -B build \
 cmake --build build --config Release
 ```
 
-On Linux the plugin is normally under `build/lib/A2MBA.so`. On a multi-configuration Windows generator it is normally under `build/bin/Release/A2MBA.dll`.
+The Linux plugin normally lands at `build/lib/A2MBA.so`. On Windows, including with multi-config generators, the driver lands at `build/bin/a2mba-opt.exe`.
 
 PowerShell example:
 
@@ -41,27 +41,17 @@ cmake --build build --config Release
 
 ### Windows portable LLVM 21.1.8
 
-The official portable Windows LLVM 21.1.8 package sets `LLVM_ENABLE_PLUGINS=OFF`. CMake detects this and builds `A2MBA.dll` as a compatibility module linked to the required LLVM components. Overriding that package setting is unsupported.
+The official portable Windows LLVM 21.1.8 package sets `LLVM_ENABLE_PLUGINS=OFF`. CMake builds `a2mba-opt.exe` with the pass linked into the `opt` driver. Do not override that setting or load a DLL linked against another static LLVM copy.
 
-The compatibility DLL stays pinned until the loading Clang or `opt` process exits. Pass-created LLVM objects can outlive the loader's plugin handle, and unloading early would leave dangling code and data. Function analyses are also registered and queried inside the DLL, keeping objects and `AnalysisKey` identities in the same statically linked LLVM copy.
+This avoids a concrete failure: LLVM assertion builds salt `DenseMap` hashing with an address in their own LLVM image. Two static copies in one process can then use different hash seeds for the same `LLVMContext`. Small modules may pass before a rehash exposes the mismatch. The standalone driver keeps everything in one LLVM image.
 
-That boundary also changes how AAMBA protects the SysV red zone when the Windows-hosted DLL processes Linux-target IR:
+On SysV x86-64, a gadget that saves flags on the stack marks its function `noredzone`. Flag-clobbering variants do not use the stack. Windows has no SysV red zone.
 
-```text
-leaq -128(%rsp), %rsp
-pushfq
-... state-sensitive primitive ...
-popfq
-leaq 128(%rsp), %rsp
-```
-
-The stack adjustment and flag sandbox form one inline-assembly unit. `LEA` leaves flags untouched; `pushfq` and `popfq` save and restore them. This avoids passing an LLVM `AttributeList` across the host/DLL boundary. A normal plugin-enabled LLVM build adds `noredzone` to the affected Linux-target function instead. The flags contract is the same on both paths. Windows targets do not use the SysV red zone.
-
-Some copies of the portable package retain the builder's missing absolute path to `diaguids.lib`. Install the Visual Studio DIA SDK or configure `A2MBA_DIAGUIDS_LIBRARY` with the exact x64 `diaguids.lib` path if CMake reports that error.
+If CMake reports a missing `diaguids.lib`, install the Visual Studio DIA SDK or set `A2MBA_DIAGUIDS_LIBRARY` to the x64 library. Some portable packages retain an unusable absolute path from the machine that built them.
 
 ## Tests
 
-Tests are enabled by default and use LLVM's lit/FileCheck tools through CTest:
+Tests are on by default. CTest runs them through LLVM's lit and FileCheck:
 
 ```bash
 python -m pip install -r requirements-test.txt
@@ -69,9 +59,11 @@ cmake --build build --config Release --target check-a2mba
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-Install `requirements-test.txt` with the same Python interpreter that CMake selects. If several interpreters are installed, set `Python3_EXECUTABLE` explicitly. An existing standalone lit runner can be supplied with `LLVM_EXTERNAL_LIT` instead.
+Install `requirements-test.txt` into the Python interpreter CMake selects. If it picks the wrong one, set `Python3_EXECUTABLE`. To use an existing lit runner, set `LLVM_EXTERNAL_LIT`.
 
-The test scaffold takes `clang`, `opt`, `llc`, and normally `FileCheck` from the selected LLVM 21 package's `LLVM_TOOLS_BINARY_DIR`. All four tools must come from the same release. If only `FileCheck` lives elsewhere, pass its exact path:
+On Windows, use an x64 Visual Studio developer shell so Clang can link the runtime fixtures. Without a linker on `PATH`, lit marks those tests unsupported. CI enters the developer shell before running them.
+
+The tests take `clang`, `opt`, `llc`, and normally `FileCheck` from the selected LLVM 21 package's `LLVM_TOOLS_BINARY_DIR`. If only `FileCheck` is elsewhere, give CMake its exact path:
 
 ```bash
 cmake -S . -B build \
@@ -79,9 +71,9 @@ cmake -S . -B build \
   -DA2MBA_FILECHECK_EXECUTABLE=/path/to/llvm-21/bin/FileCheck
 ```
 
-This changes FileCheck discovery only. `clang`, `opt`, and `llc` still come from the selected LLVM package.
+This overrides FileCheck discovery only; `clang`, `opt`, and `llc` still come from the selected LLVM package.
 
-The `check-a2mba` target builds the plugin, both native self-tests, rejects a deliberately invalid hybrid rule, and then runs lit. To omit test-only targets from a packaging build, configure with `-DA2MBA_BUILD_TESTS=OFF`. Z3 remains a build dependency because the compiled hybrid rule table is generated only after verification succeeds.
+`check-a2mba` builds the platform pass entry point and both native self-tests, checks that an invalid hybrid rule is rejected, runs the nonlinear/stateful models, then runs lit. Packaging builds can omit test targets with `-DA2MBA_BUILD_TESTS=OFF`. Z3 is still needed to verify the hybrid rule table before C++ generation.
 
 For a Debug/nightly plugin build with host compiler sanitizers:
 
@@ -98,25 +90,25 @@ cmake --build build-sanitize
 cmake --install build --config Release --prefix /desired/prefix
 ```
 
-The install layout is:
+Installed files:
 
 ```text
 bin/a2mba-clang           # Linux
 bin/a2mba-clang.py        # Windows
+bin/a2mba-opt.exe         # Windows standalone pass driver
 include/a2mba.h
 lib/a2mba/A2MBA.so        # Linux
-lib/a2mba/A2MBA.dll       # Windows layout may use the configured libdir
 share/doc/a2mba/           # README, citation metadata, and documentation
 share/licenses/a2mba/      # A2MBA, LLVM, and linked third-party notices
 ```
 
-The installed wrapper searches the companion `lib/a2mba` directory. Custom layouts should pass `--plugin` or set `A2MBA_PLUGIN`. On Windows it also needs the exact matching `opt`, found beside Clang by default or selected with `--opt`/`A2MBA_OPT`.
+On Linux, the wrapper looks in the installed `lib/a2mba` directory. Use `--plugin` or `A2MBA_PLUGIN` for another layout. On Windows it looks beside the wrapper and in source-build output directories; use `--opt` or `A2MBA_OPT` to point elsewhere.
 
-## Prebuilt plugins
+## Prebuilt binaries
 
-For a prebuilt plugin, match the exact LLVM release, operating system, and architecture reported by Clang. Build from source when that combination is unavailable. A shared major version is not enough. An LLVM 21.1 plugin and an LLVM 21.0 loader are compatible only when the release explicitly guarantees that pairing.
+Prebuilt plugins and drivers must match Clang's LLVM release, operating system, architecture, and runtime. If no binary matches, build from source. Sharing major version 21 is not sufficient.
 
-Run the smoke check before use:
+Check the binary before using it:
 
 ```bash
 a2mba-clang --doctor --clang /path/to/clang-21 --plugin /path/to/A2MBA.so
@@ -127,7 +119,7 @@ Equivalent PowerShell:
 ```powershell
 python C:\A2MBA\bin\a2mba-clang.py --doctor `
   --clang C:\LLVM-21\bin\clang.exe `
-  --plugin C:\A2MBA\lib\a2mba\A2MBA.dll
+  --opt C:\A2MBA\bin\a2mba-opt.exe
 ```
 
 ## Compile through Clang
@@ -136,13 +128,19 @@ python C:\A2MBA\bin\a2mba-clang.py --doctor `
 a2mba-clang --level balanced source.c -O3 -o app
 ```
 
-Wrapper options may appear among normal compiler arguments. Unrecognized arguments keep their original order. The wrapper sets `A2MBA_OPTIONS`; on the direct path it also adds `-fpass-plugin=<path>`.
+For C++ linking, pass `--clang clang++` so the [C++ runtime libraries](https://clang.llvm.org/docs/Toolchain.html#runtime-libraries) are linked. The wrapper preserves that compiler name, including symlinks.
 
-That direct path is used on Linux and for LLVM-output-only commands. Optimized Windows object, assembly, and executable builds use three processes instead: Clang emits optimized bitcode, `opt -passes=a2mba` writes protected bitcode, and Clang lowers or links that serialized module with further LLVM passes disabled. This is required by the official package's static-LLVM compatibility DLL; loading the DLL and running the backend in one process can mix LLVM objects from two static copies. Input files must be visible on the command line rather than hidden inside a response file; flag-only response files are accepted. Compile-only commands take one translation unit at a time, as normal build systems already do.
+Use the same Windows CRT in a DLL and its C++ host. The DLL regression passes `-fms-runtime-lib=dll -Wl,/nodefaultlib:libcmt` to both builds. Without the second flag, the GNU-style driver can add the static CRT at link time despite the frontend's DLL setting. The wrapper forwards these flags; it does not pick a CRT.
 
-Clang's automatic extension runs at `-O1` or higher and is skipped at `-O0`. The documented production path uses `-O3`, matching the paper's placement after standard optimization. The staged Windows path enforces the same rule.
+Wrapper options can sit among Clang arguments. An option value stays with its option: `-I --seed` names an include directory, not the wrapper's seed. Other arguments keep their order. The wrapper sets `A2MBA_OPTIONS` and, on Linux, adds `-fpass-plugin=<path>`.
 
-The source SDK is optional when using `functions=all` or `functions=regex:...`. For the default annotation mode, add the installed include directory and include `<a2mba.h>`.
+Linux loads the plugin into Clang. Optimized Windows object, assembly, and executable builds use three processes: Clang writes optimized bitcode, `a2mba-opt -passes=a2mba` protects it, and Clang lowers or links the serialized result with further LLVM passes disabled. LLVM-output builds stop after the driver. Before inspecting source paths and options, the Windows wrapper expands response files using LLVM's parser and Clang's quoting rules. It supports nested files, UTF-8/UTF-16, and `--rsp-quoting=windows`. Compile-only commands take one translation unit; link commands can take several source files.
+
+With `-working-directory=<path>`, source lookup and relative LLVM output paths use that directory. `-o -` still writes LLVM output to stdout. Windows regression tests cover paths with spaces and Unicode, extensionless sources selected by `-x`, dependency files, and a two-source link.
+
+Clang runs the automatic extension at `-O1` and above, not `-O0`. The normal production command uses `-O3`, with A²MBA after standard optimization; staged Windows builds follow the same rule.
+
+`functions=all` and `functions=regex:...` do not need the source SDK. With the default `annotated` selection, add the installed include directory and include `<a2mba.h>`.
 
 ## Run through opt
 
@@ -158,34 +156,36 @@ Windows PowerShell:
 
 ```powershell
 $env:A2MBA_OPTIONS = 'mode=verified;level=balanced;seed=1;functions=all'
-opt -load-pass-plugin=build\bin\Release\A2MBA.dll `
+build\bin\a2mba-opt.exe `
   -passes=a2mba input.ll -S -o protected.ll
 ```
 
-IR passed directly to `opt` needs an x86-64 Linux or Windows `target triple`; Clang-emitted IR normally has one. A missing or unsupported triple leaves the module unchanged.
+IR passed directly to `opt` needs an x86-64 Linux or Windows `target triple`. Clang normally emits one; without a supported triple, the pass leaves the module unchanged.
 
 ## Troubleshooting
 
 ### Unsupported LLVM major
 
-Both CMake and the wrapper require LLVM major 21. Point `LLVM_DIR` and `--clang` at the same installation. There are no compatibility branches for LLVM 15-20 or 22+.
+CMake and the wrapper require LLVM 21. Point `LLVM_DIR` and `--clang` at the same installation. LLVM 15–20 and 22+ are not supported.
 
-### Plugin found but load fails
+### Plugin or driver check fails
 
-Use an absolute `--plugin` path and run `--doctor`. Common causes are a different LLVM build, a Debug/Release runtime mismatch on Windows, missing LLVM shared libraries, or loading a plugin for the wrong architecture.
-
-After a successful load, the portable Windows compatibility DLL remains resident until that compiler or `opt` process exits. The produced application neither installs nor retains it.
+Run `--doctor` with an absolute `--plugin` path on Linux or an absolute `--opt` path to `a2mba-opt.exe` on Windows. Check the LLVM build, Debug/Release runtime, shared libraries, and architecture.
 
 ### Wrapper cannot find the plugin
 
-Use `--plugin PATH` or `A2MBA_PLUGIN`. In a source checkout it searches common `build/bin`, `build/lib`, and configuration subdirectories. In an installation it searches `lib/a2mba`.
+Pass `--plugin PATH` or set `A2MBA_PLUGIN`. The wrapper searches common `build/bin`, `build/lib`, and configuration directories in a source checkout, or `lib/a2mba` after installation.
+
+### Wrapper cannot find the Windows driver
+
+Pass `--opt PATH` or set `A2MBA_OPT`, pointing to `a2mba-opt.exe`, not stock `opt.exe`. Stock `opt.exe` has no `a2mba` pass unless it loads a plugin.
 
 ### Function was not transformed
 
-The default is `functions=annotated`. Check that the annotation survived normal compilation. Use `A2MBA_PROTECT_NOINLINE` when inlining removes the boundary, or `--functions all` for an experiment. A selected function can still remain unchanged because of poison flags, unsupported widths or targets, probability, or existing user inline assembly.
+The default is `functions=annotated`. Check whether the annotation survived optimization. If inlining erased the function boundary, use `A2MBA_PROTECT_NOINLINE`; for an experiment, try `--functions all`. A selected function can still be skipped because of poison flags, unsupported widths or targets, selection probability, or existing user inline assembly.
 
-Hybrid planning is bounded. If no expression fits its graph, depth, instruction, or register limits, the site is left unchanged and appears under `hybrid planning failure` when diagnostics are enabled.
+If hybrid search cannot fit within the graph, depth, instruction, or register limits, it leaves the operation unchanged. With diagnostics enabled, the reason is `hybrid planning failure`.
 
 ### LTO
 
-ThinLTO and Full LTO are not supported in v0.1. With LTO enabled, the plugin has no validated final optimizer position.
+ThinLTO and Full LTO are not supported in v0.1; the pass has no validated final position in those pipelines.

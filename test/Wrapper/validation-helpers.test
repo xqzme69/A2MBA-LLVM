@@ -1,0 +1,9 @@
+# REQUIRES: a2mba-wrapper, clang, host-executable, x86-registered-target
+# RUN: %python "%S/../../scripts/diversity.py" --clang %clang --hybrid ir --hybrid-region stateful --level heavy --variants 2 "%S/stateful-runtime.c" -- -I"%S/../../sdk" 2>&1 | %FileCheck "%s" --check-prefix=DIVERSITY
+# RUN: %python "%S/../../scripts/benchmark.py" --clang %clang --hybrid native --hybrid-region stateful --level heavy --functions annotated --iterations 1 --warmups 0 "%S/stateful-runtime.c" -- -I"%S/../../sdk" 2>&1 | %FileCheck "%s" --check-prefix=BENCHMARK
+
+# DIVERSITY: determinism: pass
+# DIVERSITY: diversity: pass (2/2 unique SHA-256 hashes)
+# BENCHMARK: --hybrid-region stateful
+# BENCHMARK: runtime median:
+# BENCHMARK: file size:

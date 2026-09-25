@@ -29,7 +29,8 @@ void Statistics::print(llvm::raw_ostream &output) const {
          << "  SBB: " << sbbTransforms << '\n'
          << "  paper RCR/RCL: " << paperRotates << '\n'
          << "  hybrid IR: " << hybridIRTransforms << '\n'
-         << "  hybrid native: " << hybridNativeTransforms << "\n\n"
+         << "  hybrid native: " << hybridNativeTransforms << '\n'
+         << "  stateful regions: " << statefulRegions << "\n\n"
          << "skipped:\n";
 
   for (unsigned index = 1; index < skipped.size(); ++index) {

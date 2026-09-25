@@ -1,0 +1,2 @@
+# REQUIRES: clang, host-executable, x86-registered-target
+# RUN: %python "%S/../tools/check_stateful_seeds.py" --clang %clang --output "%t" --opt %a2mba_opt

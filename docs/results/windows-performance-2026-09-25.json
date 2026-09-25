@@ -1,0 +1,256 @@
+{
+  "schema": 1,
+  "date": "2026-09-25",
+  "project": "A2MBA-LLVM",
+  "scope": "Windows x86-64 performance and sampled runtime correctness",
+  "environment": {
+    "os": "Windows 11 Pro",
+    "os_version": "10.0.26200",
+    "cpu": "AMD Ryzen 5 5600G",
+    "physical_cores": 6,
+    "logical_processors": 12,
+    "power_plan": "Balanced",
+    "affinity": "not pinned",
+    "background_processes": "not controlled"
+  },
+  "toolchain": {
+    "llvm_version": "21.1.8",
+    "llvm_build": "local fork, not the official portable package",
+    "llvm_revision": "9d10c87ff1331cffba29c41a9965ee450f20044d",
+    "build_type": "Release",
+    "pass_entry": "standalone driver",
+    "pass_entry_sha256": "d1a8a942575bea382c6dd7de4d8e1a275d1883fdc83a38c5e97a4fec257b2f02",
+    "harness_sha256": "3584adfc7b30529911e3b8770869e33d909d52b236257dbae71cfb7ab0be4008"
+  },
+  "source_report_sha256": "29589e7a7216a619b14594e588e1fe059576190130d5b83c777cc1efa71153f9",
+  "workload": {
+    "functions": 100,
+    "functions_per_length": 20,
+    "source_operation_counts": [
+      1,
+      2,
+      3,
+      5,
+      7
+    ],
+    "level": "medium",
+    "probability": 100,
+    "seed": 10664542,
+    "build_order": "rotated between variants",
+    "runtime_order": "rotated between variants"
+  },
+  "coverage": {
+    "plain": {
+      "functions_marked_protected": 0,
+      "stateful_region_seeds": 0
+    },
+    "classic": {
+      "functions_marked_protected": 100,
+      "stateful_region_seeds": 0
+    },
+    "hybrid-ir": {
+      "functions_marked_protected": 100,
+      "stateful_region_seeds": 0
+    },
+    "hybrid-native": {
+      "functions_marked_protected": 90,
+      "stateful_region_seeds": 0
+    },
+    "hybrid-layered": {
+      "functions_marked_protected": 100,
+      "stateful_region_seeds": 0
+    },
+    "hybrid-stateful": {
+      "functions_marked_protected": 100,
+      "stateful_region_seeds": 80
+    }
+  },
+  "performance": {
+    "checksum": "863b20d1323519df",
+    "compile_runs": 3,
+    "loop_iterations": 1000000,
+    "runtime_runs": 7,
+    "target_triple": "x86_64-pc-windows-msvc",
+    "timing": "whole-process wall time, including startup and checksum output",
+    "variants": {
+      "classic": {
+        "compile_median_seconds": 0.7599871000275016,
+        "compile_seconds": [
+          0.7599871000275016,
+          0.7853933000005782,
+          0.7433214000193402
+        ],
+        "file_size_bytes": 188928,
+        "options": "mode=verified;level=medium;seed=10664542;functions=regex:^target_.*$;hybrid=off;hybrid-region=none;hybrid-layers=none;transform=auto;probability=100",
+        "ratios_to_plain": {
+          "compile_time": 2.0932708462705625,
+          "file_size": 1.64,
+          "runtime": 42.50667518643627,
+          "text_size": 2.139321950012373
+        },
+        "runtime_median_seconds": 6.710443799966015,
+        "runtime_seconds": [
+          6.765016199962702,
+          6.702706700016279,
+          6.704830300004687,
+          6.705461099976674,
+          6.710443799966015,
+          6.7119430000311695,
+          6.759775599988643
+        ],
+        "sha256": "ed7f5b9cd5972975dd8ad43860078e8f0bcf144da0672becb313031776be7a01",
+        "text_size_bytes": 138320
+      },
+      "hybrid-ir": {
+        "compile_median_seconds": 4.821622500021476,
+        "compile_seconds": [
+          4.878655000007711,
+          4.821622500021476,
+          4.790283799986355
+        ],
+        "file_size_bytes": 190464,
+        "options": "mode=verified;level=medium;seed=10664542;functions=regex:^target_.*$;hybrid=ir;hybrid-region=none;hybrid-layers=none;transform=auto;probability=100",
+        "ratios_to_plain": {
+          "compile_time": 13.280438326718844,
+          "file_size": 1.6533333333333333,
+          "runtime": 27.66612168999968,
+          "text_size": 2.1620885919326898
+        },
+        "runtime_median_seconds": 4.367595300020184,
+        "runtime_seconds": [
+          4.38056250003865,
+          4.365687599987723,
+          4.365147800010163,
+          4.367595300020184,
+          4.37212830001954,
+          4.365887300053146,
+          4.375237600004766
+        ],
+        "sha256": "b6387170819bf2271577c2cc82417e3a09a1f37eb3d3a162800fe443acb1af77",
+        "text_size_bytes": 139792
+      },
+      "hybrid-layered": {
+        "compile_median_seconds": 5.501423800014891,
+        "compile_seconds": [
+          5.538652999966871,
+          5.465212799957953,
+          5.501423800014891
+        ],
+        "file_size_bytes": 276480,
+        "options": "mode=verified;level=medium;seed=10664542;functions=regex:^target_.*$;hybrid=ir;hybrid-region=none;hybrid-layers=context-random;transform=auto;probability=100",
+        "ratios_to_plain": {
+          "compile_time": 15.152849374855778,
+          "file_size": 2.4,
+          "runtime": 38.15124026756603,
+          "text_size": 3.4929472902746843
+        },
+        "runtime_median_seconds": 6.022860000026412,
+        "runtime_seconds": [
+          6.046145600033924,
+          5.957299700006843,
+          5.957971299998462,
+          6.044386700028554,
+          6.077887999999803,
+          6.022860000026412,
+          5.961505999963265
+        ],
+        "sha256": "c6ba856338d7778c8f0a5083030568e79dd7e5b082e62720284c2991ac8c0b0c",
+        "text_size_bytes": 225840
+      },
+      "hybrid-native": {
+        "compile_median_seconds": 4.591682700032834,
+        "compile_seconds": [
+          4.70522709999932,
+          4.549653900030535,
+          4.591682700032834
+        ],
+        "file_size_bytes": 173056,
+        "options": "mode=verified;level=medium;seed=10664542;functions=regex:^target_.*$;hybrid=native;hybrid-region=none;hybrid-layers=none;transform=auto;probability=100",
+        "ratios_to_plain": {
+          "compile_time": 12.647103524462212,
+          "file_size": 1.5022222222222221,
+          "runtime": 18.443153136378765,
+          "text_size": 1.8992823558525118
+        },
+        "runtime_median_seconds": 2.9115837000426836,
+        "runtime_seconds": [
+          2.908612900006119,
+          2.909900100028608,
+          2.915726800041739,
+          2.9115837000426836,
+          2.915272499958519,
+          2.9085727000492625,
+          2.9460587999783456
+        ],
+        "sha256": "de474da6eb9ae0243c814a05898b9e182a10be0b5053de54f045f79bb219382f",
+        "text_size_bytes": 122800
+      },
+      "hybrid-stateful": {
+        "compile_median_seconds": 5.411711099965032,
+        "compile_seconds": [
+          5.39019190002,
+          5.533076099993195,
+          5.411711099965032
+        ],
+        "file_size_bytes": 254976,
+        "options": "mode=verified;level=medium;seed=10664542;functions=regex:^target_.*$;hybrid=ir;hybrid-region=stateful;hybrid-layers=none;transform=auto;probability=100",
+        "ratios_to_plain": {
+          "compile_time": 14.905749154933902,
+          "file_size": 2.2133333333333334,
+          "runtime": 56.24042236453325,
+          "text_size": 3.1613462014352884
+        },
+        "runtime_median_seconds": 8.87856300000567,
+        "runtime_seconds": [
+          8.877755100023933,
+          8.901202400040347,
+          8.877806399948895,
+          8.87494660000084,
+          8.897006899991538,
+          8.892885099980049,
+          8.87856300000567
+        ],
+        "sha256": "dd0ac7e4105d6da0b9c6fe3ac7eb6ad0fe97f8ced1248e954347ef2fb3c729fb",
+        "text_size_bytes": 204400
+      },
+      "plain": {
+        "compile_median_seconds": 0.3630620000185445,
+        "compile_seconds": [
+          0.46370919997571036,
+          0.3630620000185445,
+          0.3613113999599591
+        ],
+        "file_size_bytes": 115200,
+        "options": "functions=regex:^$",
+        "ratios_to_plain": {
+          "compile_time": 1,
+          "file_size": 1,
+          "runtime": 1,
+          "text_size": 1
+        },
+        "runtime_median_seconds": 0.15786800003843382,
+        "runtime_seconds": [
+          0.15935530001297593,
+          0.1568845000001602,
+          0.15827010001521558,
+          0.15738749998854473,
+          0.1579998999950476,
+          0.15758739999728277,
+          0.15786800003843382
+        ],
+        "sha256": "49981d1a364ef5616b10eb337011a1e44add2cf81b426df1cdf107a43504f9dc",
+        "text_size_bytes": 64656
+      }
+    },
+    "warmups": 2,
+    "workload_sha256": "9925d5592d8de49f6f40ed79ff5e6327c32d715ee4e9185f4b5ff3c0e7d58b37"
+  },
+  "limits": [
+    "One deterministic synthetic workload on one Windows machine and one LLVM build.",
+    "All initial, warmup, and timed outputs matched the plain executable checksum; this is not a full proof of equivalence.",
+    "Whole-process times include startup and checksum output; .text includes linked runtime code.",
+    "Protection uses medium with probability=100, not the default selection probability.",
+    "Stateful mode here is hybrid=ir with hybrid-layers=none, not the fully layered configuration.",
+    "No external simplifier was run in this performance-only experiment."
+  ]
+}

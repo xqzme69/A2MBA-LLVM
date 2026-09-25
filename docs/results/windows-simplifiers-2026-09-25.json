@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "date": "2026-09-25",
+  "platform": "Windows x86-64",
+  "source_revision": "a7998ff611832a652e1b6088b13c213d95aa44d1",
+  "source_worktree_clean": false,
+  "llvm_version": "21.1.8",
+  "pass_entry_sha256": "a54c4597fb11dd08b7c0e8f9058bbb03d53976daedbb08b90543415ebf7e8dff",
+  "baseline_harness_sha256": "3584adfc7b30529911e3b8770869e33d909d52b236257dbae71cfb7ab0be4008",
+  "corpus": {
+    "per_complexity": 4,
+    "complexities": ["basic", "light", "balanced", "medium", "heavy"],
+    "bit_width": 64,
+    "source_operations": "one per non-stateful function; two to seven per stateful function",
+    "flat_node_limit": 100000,
+    "equivalence": "67 deterministic concrete vectors per function; not a proof",
+    "hybrid_ir": {
+      "options": "hybrid=ir;hybrid-region=none;hybrid-layers=none",
+      "functions": 20,
+      "changed": 16,
+      "flat_exported": 20
+    },
+    "hybrid_layered": {
+      "options": "hybrid=ir;hybrid-region=none;hybrid-layers=context-random",
+      "functions": 20,
+      "changed": 17,
+      "flat_exported": 18,
+      "changed_flat_exported": 15,
+      "flat_skipped": 2,
+      "projection": "ADC/SBB inline assembly modeled by its flag-aware identity"
+    },
+    "hybrid_stateful": {
+      "options": "hybrid=ir;hybrid-region=stateful;hybrid-layers=none",
+      "functions": 20,
+      "changed": 20,
+      "flat_exported": 0,
+      "minimum_expanded_nodes": 8141813417,
+      "post_o3_flat_under_100000": 0,
+      "post_o3_minimum_expanded_nodes": 21591359
+    }
+  },
+  "tools": {
+    "cobra": {
+      "source_revision": "af44b8ad7c8ec548d431463475e93b0118e77a29",
+      "local_changes": "pre-existing stack-safety patch plus file-input CLI adapter; simplifier core unchanged by the adapter",
+      "file_input_binary_sha256": "b15b0e07171fe3054201be929967ced135ad3687f2afd6c10112645b3f0f5244",
+      "candidate_parity_with_original_cli": "13/13 launched inputs returned identical candidates",
+      "verification": "file-input build had no linked Z3; candidates independently compared with the source using Z3 4.13.0, while source-to-protected equivalence was sampled",
+      "hybrid_ir": {
+        "changed_source_matching_shorter_candidate": 16,
+        "changed_tested": 16,
+        "unchanged_input": 4
+      },
+      "hybrid_layered": {
+        "changed_source_matching_shorter_candidate": 15,
+        "changed_tested": 15,
+        "unchanged_input": 3
+      }
+    },
+    "gamba": {
+      "source_revision": "96691c0f1c7fd1be66bd11a6f2b60ce6865ce68c",
+      "source_sha256": "6b3db9442ff3fe2cdca83163a443724cf177125034c1870547a605413be8142c",
+      "per_expression_timeout_seconds": 30,
+      "hybrid_ir": {
+        "changed_correct_reductions": 5,
+        "changed_timeouts": 11,
+        "unchanged_input": 4
+      },
+      "hybrid_layered": {
+        "changed_unsupported_right_shift": 15,
+        "unchanged_input": 3
+      }
+    },
+    "promba": {
+      "source_revision": "1e0b45057fdd4ca4835162a444bdb809f514a2c3",
+      "binary_sha256": "90c6379de34aaa194995306b83cfad3e4accedfcaed9a8124c332da06fcabb3",
+      "sample": "first flat-exported expression from each complexity; five per mode",
+      "per_function_timeout_seconds": 30,
+      "sygus_timeout_seconds": 5,
+      "independent_z3_timeout_seconds": 20,
+      "hybrid_ir": {
+        "changed_reduced_without_proof": 4,
+        "changed_reduced_sample_matching_source": 4,
+        "concrete_checks_per_reduction": 132,
+        "unchanged_input": 1
+      },
+      "hybrid_layered": {
+        "changed_expanded": 4,
+        "unchanged_input": 1
+      },
+      "stateful_dag_probe": {
+        "function": "target_basic_000",
+        "returned": "a2mba_135",
+        "meaning": "ProMBA read the return local, not the assignments defining the region"
+      }
+    }
+  },
+  "project_ctest": "8/8 passed",
+  "limits": [
+    "No CoBRA, GAMBA, or ProMBA result here measures recovery of a whole stateful region.",
+    "CoBRA's file-input adapter bypasses the Windows command-line length limit but does not change its simplification core. Its Z3 verifier was unavailable in that local build.",
+    "The layered flat export projects architectural gadgets to their flag-aware identity; it is not the original binary or inline assembly.",
+    "Post-O3 node estimates strip arithmetic flags unsupported by the expression parser; they are structural counts, not a semantic proof.",
+    "A parser rejection, invocation error, timeout, or missing flat export is not a failed deobfuscation.",
+    "The worktree was uncommitted; the pass binary hash identifies the exact tested build."
+  ]
+}

@@ -61,6 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="balanced",
     )
     parser.add_argument("--hybrid", choices=("off", "ir", "native"), default="off")
+    parser.add_argument("--hybrid-region", choices=("none", "stateful"), default="none")
     parser.add_argument(
         "--hybrid-layers",
         choices=("none", "profile", "context-adc", "context-sbb", "context-random"),
@@ -106,6 +107,8 @@ def compile_variant(
         arguments.level,
         "--hybrid",
         arguments.hybrid,
+        "--hybrid-region",
+        arguments.hybrid_region,
         "--hybrid-layers",
         arguments.hybrid_layers,
         "--seed",
@@ -119,6 +122,8 @@ def compile_variant(
         command.extend(("--opt", arguments.opt))
     if arguments.plugin:
         command.extend(("--plugin", arguments.plugin))
+    if os.name == "nt":
+        command.append("-mno-incremental-linker-compatible")
     command.extend(
         (
             os.fspath(arguments.source.resolve()),

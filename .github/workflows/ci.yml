@@ -274,7 +274,24 @@ jobs:
           -DA2MBA_BUILD_TESTS=ON
 
       - name: Build and run lit tests
-        run: cmake --build build --config Release --target check-a2mba --parallel 2
+        shell: pwsh
+        run: |
+          if ($IsWindows) {
+            $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio/Installer/vswhere.exe"
+            $vsInstall = & $vswhere -latest -version "[17.0,18.0)" -products * `
+              -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+            if (-not $vsInstall) {
+              throw "Visual Studio 2022 C++ tools were not found"
+            }
+            Import-Module (Join-Path $vsInstall "Common7/Tools/Microsoft.VisualStudio.DevShell.dll")
+            Enter-VsDevShell -VsInstallPath $vsInstall -SkipAutomaticLocation `
+              -DevCmdArguments "-arch=x64 -host_arch=x64"
+            Get-Command link.exe -ErrorAction Stop | Out-Null
+          }
+          cmake --build build --config Release --target check-a2mba --parallel 2
+          if ($LASTEXITCODE -ne 0) {
+            throw "The A2MBA test suite failed"
+          }
 
       - name: Install package
         shell: pwsh
@@ -292,8 +309,8 @@ jobs:
           $clang = Join-Path $env:LLVM_ROOT "bin/clang${{ matrix.executable_suffix }}"
           if ($IsWindows) {
             $wrapper = Join-Path $package "bin/a2mba-clang.py"
-            $plugin = Join-Path $package "lib/a2mba/A2MBA.dll"
-            python $wrapper --doctor --clang $clang --plugin $plugin
+            $driver = Join-Path $package "bin/a2mba-opt.exe"
+            python $wrapper --doctor --clang $clang --opt $driver
           } else {
             $wrapper = Join-Path $package "bin/a2mba-clang"
             $plugin = Join-Path $package "lib/a2mba/A2MBA.so"

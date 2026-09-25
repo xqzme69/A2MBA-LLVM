@@ -37,6 +37,21 @@ a2mba_enable_sanitizers(a2mba-hybrid-selftest)
 set(A2MBA_HYBRID_BAD_RULE_TEST
   "${PROJECT_SOURCE_DIR}/unittests/HybridCore/reject_bad_rule.py"
 )
+set(A2MBA_NONLINEAR_ENVELOPE_TEST
+  "${PROJECT_SOURCE_DIR}/unittests/verify_nonlinear_envelope.py"
+)
+set(A2MBA_STATEFUL_ENCODING_TEST
+  "${PROJECT_SOURCE_DIR}/unittests/verify_stateful_encoding.py"
+)
+set(A2MBA_BASELINE_TEST
+  "${PROJECT_SOURCE_DIR}/unittests/test_baseline.py"
+)
+set(A2MBA_CLANG_WRAPPER_TEST
+  "${PROJECT_SOURCE_DIR}/unittests/test_clang_wrapper.py"
+)
+set(A2MBA_VALIDATION_CLI_TEST
+  "${PROJECT_SOURCE_DIR}/unittests/test_validation_cli.py"
+)
 
 set(A2MBA_TEST_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(A2MBA_TEST_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -93,16 +108,29 @@ endif()
 
 set(A2MBA_LIT_ARGS
   -sv
-  --param "a2mba_plugin=$<TARGET_FILE:A2MBA>"
   --param "a2mba_selftest=$<TARGET_FILE:a2mba-selftest>"
   "${CMAKE_CURRENT_BINARY_DIR}"
 )
+if(A2MBA_STANDALONE_DRIVER)
+  list(INSERT A2MBA_LIT_ARGS 1
+    --param "a2mba_opt_driver=$<TARGET_FILE:a2mba-opt>"
+  )
+else()
+  list(INSERT A2MBA_LIT_ARGS 1
+    --param "a2mba_plugin=$<TARGET_FILE:A2MBA>"
+  )
+endif()
 
 add_custom_target(check-a2mba
   COMMAND $<TARGET_FILE:a2mba-hybrid-selftest>
   COMMAND ${Python3_EXECUTABLE} "${A2MBA_HYBRID_BAD_RULE_TEST}"
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_NONLINEAR_ENVELOPE_TEST}"
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_STATEFUL_ENCODING_TEST}"
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_BASELINE_TEST}"
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_CLANG_WRAPPER_TEST}"
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_VALIDATION_CLI_TEST}"
   COMMAND ${A2MBA_LIT_COMMAND} ${A2MBA_LIT_ARGS}
-  DEPENDS A2MBA a2mba-selftest a2mba-hybrid-selftest
+  DEPENDS ${A2MBA_MAIN_TARGET} a2mba-selftest a2mba-hybrid-selftest
   COMMENT "Running A2MBA lit tests"
   USES_TERMINAL
   VERBATIM
@@ -118,4 +146,24 @@ add_test(NAME a2mba-hybrid-core COMMAND a2mba-hybrid-selftest)
 add_test(
   NAME a2mba-hybrid-bad-rule
   COMMAND ${Python3_EXECUTABLE} "${A2MBA_HYBRID_BAD_RULE_TEST}"
+)
+add_test(
+  NAME a2mba-nonlinear-envelope
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_NONLINEAR_ENVELOPE_TEST}"
+)
+add_test(
+  NAME a2mba-stateful-encoding
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_STATEFUL_ENCODING_TEST}"
+)
+add_test(
+  NAME a2mba-baseline
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_BASELINE_TEST}"
+)
+add_test(
+  NAME a2mba-clang-wrapper
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_CLANG_WRAPPER_TEST}"
+)
+add_test(
+  NAME a2mba-validation-cli
+  COMMAND ${Python3_EXECUTABLE} "${A2MBA_VALIDATION_CLI_TEST}"
 )

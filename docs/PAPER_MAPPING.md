@@ -1,6 +1,6 @@
 # Paper mapping
 
-This map links *Unifying Mixed Boolean-Arithmetic Obfuscation by Architectural and Anti-Generalization Hardening* to the corresponding project code. A²MBA-LLVM is not source-compatible with the unpublished LLVM 15 prototype.
+Where the ideas from *Unifying Mixed Boolean-Arithmetic Obfuscation by Architectural and Anti-Generalization Hardening* appear in this repository. This is an LLVM 21 implementation, not a port of the authors' LLVM 15 code.
 
 | Paper material | Project location | Status in this implementation |
 | --- | --- | --- |
@@ -17,22 +17,22 @@ This map links *Unifying Mixed Boolean-Arithmetic Obfuscation by Architectural a
 | Section 4.2, EFLAGS handling | `lib/AAMBA.cpp` | State-sensitive work is emitted atomically with explicit side effects; affected SysV functions disable the red zone. |
 | Section 4.3, CSPRNG and unique constants | `lib/Random.cpp`, `lib/Modular.cpp`, `lib/Context.cpp` | OS randomness by default, deterministic stream with `seed`, module-wide uniqueness, and `APInt` modular arithmetic. |
 | Section 5.2, differential correctness evaluation | `test/Runtime`, `scripts/validate.py` | Local gates exist; the paper's 7-program, 100-variant, 10,000-input result is not attributed to this project. |
-| Section 5.4, overhead | `scripts/benchmark.py`, `scripts/baseline.py`, `docs/BENCHMARKING.md` | Provides local measurement procedures and a separate project-specific hybrid snapshot. |
+| Section 5.4, overhead | `scripts/benchmark.py`, `scripts/baseline.py`, `docs/BENCHMARKING.md` | Local measurement commands and a separate hybrid run. |
 | Section 5.5, diversity | `test/Determinism`, `scripts/diversity.py` | Checks same-seed determinism and different-seed object hashes for a supplied workload. |
 
-The hybrid e-graph search and native register lowering are project extensions inspired by SaMBA and asmMBA. They are not presented as part of the A²MBA paper or as reproductions of either implementation.
+The hybrid e-graph, native register lowering, nonlinear envelope, and stateful regions were added here. SaMBA and asmMBA informed the first two; their implementations and results are not reused.
 
 ## Architecture names
 
-The project keeps the paper's two high-level names:
+The two names from the authors' work are:
 
 - AAMBA: architectural state-dependent identities, currently ADC/SBB plus the paper-only rotation example.
 - AGT: Rule Explosion and the self-contained Context Trap pair.
 
-`ModularScale` is a project utility derived from Rule Explosion's scaling construction, not a separately named paper transform.
+`ModularScale` is our helper built from Rule Explosion's scaling identity, not a named transform in their work.
 
 ## Evaluation boundary
 
-The paper reports an LLVM 15 prototype, seven benchmark programs, deobfuscator success and deception rates, overhead factors, and 1,000 variants per benchmark. A²MBA-LLVM targets LLVM 21 and includes neither that prototype nor its complete experiment, so those results do not transfer to this implementation. The Context Trap and hybrid snapshots in [BENCHMARKING.md](BENCHMARKING.md) use different corpora and scopes.
+The authors' results come from an LLVM 15 prototype, seven benchmark programs, and 1,000 variants per benchmark. This repository does not contain that prototype or reproduce its full experiment. Its deobfuscator rates and overhead factors cannot be assigned to this LLVM 21 pass. Our Context Trap and hybrid runs in [Benchmarking](BENCHMARKING.md) use different inputs and methods.
 
-[PAPER_DEVIATIONS.md](PAPER_DEVIATIONS.md) explains each deliberate difference. [BENCHMARKING.md](BENCHMARKING.md) describes the local measurement tools and their limits.
+Implementation differences are in [Intentional deviations](PAPER_DEVIATIONS.md); local measurements and their limits are in [Benchmarking](BENCHMARKING.md).

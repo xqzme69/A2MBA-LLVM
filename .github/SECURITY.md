@@ -2,10 +2,10 @@
 
 ## Supported versions
 
-Security fixes are made against the latest tagged release and the current `main` branch.
+We support the latest tagged release and the current `main` branch.
 
 ## Reporting a vulnerability
 
-Do not open a public issue with vulnerability details. Use GitHub's private vulnerability reporting for this repository and include the affected revision, a minimal reproduction, the expected impact, and the LLVM and operating-system versions involved.
+Please use GitHub's private vulnerability reporting, not a public issue. Include the affected revision, a minimal reproducer, expected impact, and your LLVM and operating-system versions.
 
-If private reporting is unavailable, open an issue asking for a private contact channel without including technical details.
+If private reporting is unavailable, open an issue asking for a private contact channel. Leave vulnerability details out of that issue.

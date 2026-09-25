@@ -32,7 +32,12 @@ def require_tool(name, override=""):
     return path
 
 
-if not config.a2mba_plugin or not os.path.isfile(config.a2mba_plugin):
+if config.a2mba_standalone_driver:
+    if not config.a2mba_opt_driver or not os.path.isfile(config.a2mba_opt_driver):
+        lit_config.fatal(
+            "a2mba-opt was not built; run the check-a2mba build target"
+        )
+elif not config.a2mba_plugin or not os.path.isfile(config.a2mba_plugin):
     lit_config.fatal("A2MBA plugin was not built; run the check-a2mba build target")
 if not config.a2mba_selftest or not os.path.isfile(config.a2mba_selftest):
     lit_config.fatal("a2mba-selftest was not built; run the check-a2mba build target")
@@ -51,8 +56,12 @@ tools = {
 config.environment["PATH"] = os.pathsep.join(
     [config.llvm_tools_dir, config.environment.get("PATH", "")]
 )
-config.environment["A2MBA_PLUGIN"] = config.a2mba_plugin
+config.environment["PYTHONIOENCODING"] = "utf-8"
 config.environment["A2MBA_CLANG"] = tools["%clang"]
+if config.a2mba_standalone_driver:
+    config.environment["A2MBA_OPT"] = config.a2mba_opt_driver
+else:
+    config.environment["A2MBA_PLUGIN"] = config.a2mba_plugin
 
 config.substitutions.extend((name, quote(path)) for name, path in tools.items())
 config.substitutions.extend(
@@ -61,12 +70,14 @@ config.substitutions.extend(
         ("%a2mba_host_triple", config.a2mba_host_triple),
         (
             "%a2mba_opt",
-            f"{quote(tools['%opt'])} -load-pass-plugin={quote(config.a2mba_plugin)}",
+            quote(config.a2mba_opt_driver)
+            if config.a2mba_standalone_driver
+            else f"{quote(tools['%opt'])} -load-pass-plugin={quote(config.a2mba_plugin)}",
         ),
         ("%a2mba_selftest", quote(config.a2mba_selftest)),
         (
             "%a2mba_redzone_prefix",
-            "IR-STATIC" if config.a2mba_static_llvm_fallback else "IR-DYNAMIC",
+            "IR-DYNAMIC",
         ),
         (
             "%a2mba_wrapper",
@@ -77,7 +88,10 @@ config.substitutions.extend(
 )
 
 config.available_features.update(
-    {"a2mba-plugin", "a2mba-selftest", "a2mba-wrapper", "clang", "llc"}
+    {"a2mba-selftest", "a2mba-wrapper", "clang", "llc"}
+)
+config.available_features.add(
+    "a2mba-driver" if config.a2mba_standalone_driver else "a2mba-plugin"
 )
 windows_developer_environment = (
     any(

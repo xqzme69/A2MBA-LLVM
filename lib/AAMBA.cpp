@@ -27,32 +27,63 @@ struct AssemblyPrimitive {
 };
 
 llvm::Expected<AssemblyPrimitive> describePrimitive(unsigned bitWidth, TransformKind transform,
-                                                    bool protectRedZoneInline) {
+                                                    std::uint64_t variantSeed) {
   const char widthSuffix = bitWidth == 32 ? 'l' : 'q';
   const char *registerModifier = bitWidth == 32 ? "k" : "q";
-  const std::string saveFlags =
-      protectRedZoneInline ? "leaq -128(%rsp), %rsp\n\tpushfq\n\t" : "pushfq\n\t";
-  const std::string restoreFlags = protectRedZoneInline ? "popfq\n\tleaq 128(%rsp), %rsp" : "popfq";
+  const bool preserveFlags = ((variantSeed >> 5U) & 1U) != 0;
+  const std::string saveFlags = preserveFlags ? "pushfq\n\t" : "";
+  const std::string restoreFlags = preserveFlags ? "\n\tpopfq" : "";
+
+  std::string setCarry;
+  switch ((variantSeed >> 1U) & 3U) {
+  case 0:
+    setCarry = "stc";
+    break;
+  case 1:
+    setCarry = "clc\n\tcmc";
+    break;
+  case 2:
+    setCarry = "bt" + std::string(1, widthSuffix) + " $$0, ${2:" + registerModifier + "}";
+    break;
+  case 3:
+    setCarry = "cmp" + std::string(1, widthSuffix) + " ${2:" + registerModifier +
+               "}, ${2:" + registerModifier + "}\n\tcmc";
+    break;
+  }
+
+  const unsigned compensationVariant = static_cast<unsigned>((variantSeed >> 3U) % 3U);
+  auto compensate = [&](llvm::StringRef operation, llvm::StringRef unitOperation) {
+    const std::string source =
+        " ${2:" + std::string(registerModifier) + "}, ${0:" + registerModifier + "}";
+    const std::string unit = " $$1, ${0:" + std::string(registerModifier) + "}";
+    const std::string unary = " ${0:" + std::string(registerModifier) + "}";
+    if (compensationVariant == 0) {
+      return operation.str() + widthSuffix + source + "\n\t" + operation.str() + widthSuffix + unit;
+    }
+    if (compensationVariant == 1) {
+      return operation.str() + widthSuffix + unit + "\n\t" + operation.str() + widthSuffix + source;
+    }
+    return operation.str() + widthSuffix + source + "\n\t" + unitOperation.str() + widthSuffix +
+           unary;
+  };
 
   switch (transform) {
-  case TransformKind::Adc:
-    return AssemblyPrimitive{saveFlags + "stc\n\tadc" + std::string(1, widthSuffix) +
-                                 " ${2:" + registerModifier + "}, ${0:" + registerModifier +
-                                 "}\n\tsub" + widthSuffix + " ${2:" + registerModifier +
-                                 "}, ${0:" + registerModifier + "}\n\tsub" + widthSuffix +
-                                 " $$1, ${0:" + registerModifier + "}\n\t" + restoreFlags,
-                             "=&r,0,r,~{memory},~{flags}", true, "a2mba.adc"};
-  case TransformKind::Sbb:
-    return AssemblyPrimitive{saveFlags + "stc\n\tsbb" + std::string(1, widthSuffix) +
-                                 " ${2:" + registerModifier + "}, ${0:" + registerModifier +
-                                 "}\n\tadd" + widthSuffix + " ${2:" + registerModifier +
-                                 "}, ${0:" + registerModifier + "}\n\tadd" + widthSuffix +
-                                 " $$1, ${0:" + registerModifier + "}\n\t" + restoreFlags,
-                             "=&r,0,r,~{memory},~{flags}", true, "a2mba.sbb"};
+  case TransformKind::Adc: {
+    const std::string body = saveFlags + setCarry + "\n\tadc" + widthSuffix +
+                             " ${2:" + registerModifier + "}, ${0:" + registerModifier + "}\n\t" +
+                             compensate("sub", "dec") + restoreFlags;
+    return AssemblyPrimitive{body, "=&r,0,r,~{memory},~{flags}", true, "a2mba.adc"};
+  }
+  case TransformKind::Sbb: {
+    const std::string body = saveFlags + setCarry + "\n\tsbb" + widthSuffix +
+                             " ${2:" + registerModifier + "}, ${0:" + registerModifier + "}\n\t" +
+                             compensate("add", "inc") + restoreFlags;
+    return AssemblyPrimitive{body, "=&r,0,r,~{memory},~{flags}", true, "a2mba.sbb"};
+  }
   case TransformKind::PaperRcrRcl:
-    return AssemblyPrimitive{saveFlags + "stc\n\trcl" + std::string(1, widthSuffix) +
+    return AssemblyPrimitive{"pushfq\n\tstc\n\trcl" + std::string(1, widthSuffix) +
                                  " $$1, ${0:" + registerModifier + "}\n\trcr" + widthSuffix +
-                                 " $$1, ${0:" + registerModifier + "}\n\t" + restoreFlags,
+                                 " $$1, ${0:" + registerModifier + "}\n\tpopfq",
                              "=&r,0,~{memory},~{flags}", false, "a2mba.paper.rotate"};
   default:
     return llvm::createStringError(llvm::errc::invalid_argument, "unsupported AAMBA transform: %s",
@@ -76,20 +107,12 @@ llvm::Expected<llvm::Value *> applyArchitecturalIdentity(llvm::IRBuilderBase &bu
 
   llvm::Function &function = *builder.GetInsertBlock()->getParent();
   const llvm::Triple triple(function.getParent()->getTargetTriple());
-  bool protectRedZoneInline = false;
-#ifdef A2MBA_STATIC_LLVM_PLUGIN
-  // LLVM's official portable Windows SDK disables plugins. Its compatibility
-  // fallback links LLVM into this DLL, so AttributeList objects cannot safely
-  // cross into opt's separately linked LLVMContext. Keep PUSHFQ outside the
-  // SysV red zone with flag-neutral LEA stack adjustments instead.
-  protectRedZoneInline = triple.isOSLinux();
-#else
   if (triple.isOSLinux()) {
     function.addFnAttr(llvm::Attribute::NoRedZone);
   }
-#endif
 
-  auto primitive = describePrimitive(integerType->getBitWidth(), transform, protectRedZoneInline);
+  auto primitive =
+      describePrimitive(integerType->getBitWidth(), transform, constant.getZExtValue());
   if (!primitive) {
     return primitive.takeError();
   }
