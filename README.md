@@ -18,7 +18,7 @@ The authors' resilience and overhead figures are for their LLVM 15 prototype, no
 
 ## Build
 
-You need CMake 3.24+, a C++20 compiler, Python 3.9+, Z3, and LLVM 21 development files. The pinned Python dependencies include lit and Z3:
+You need CMake 3.24+, C and C++20 compilers, Python 3.9+, Z3, and LLVM 21 development files. The pinned Python dependencies include lit and Z3:
 
 ```bash
 python -m pip install -r requirements-test.txt
@@ -145,7 +145,7 @@ In a separate 1,000-expression LLVM 21.1.8 run, each expression received one ran
 
 ![ProMBA outcomes for the randomized Context Trap corpus](docs/results/promba-outcomes.png)
 
-That run predates the nonlinear envelope after Context Trap. [Benchmarking](docs/BENCHMARKING.md) has the full outcomes, CoBRA/GAMBA parser results, parameter check, configuration, and hashes. Its numbers do not describe the current pass.
+That run predates the nonlinear envelope after Context Trap. The [1,000 expression pairs](docs/results/context-trap-1000-expressions.jsonl) are available as JSONL. [Benchmarking](docs/BENCHMARKING.md) has the outcomes, CoBRA/GAMBA parser results, parameter check, configuration, and hashes. Its numbers do not describe the current pass.
 
 ## Historical hybrid baseline
 

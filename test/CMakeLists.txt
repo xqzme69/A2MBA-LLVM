@@ -1,5 +1,6 @@
 set(A2MBA_SELFTEST_SOURCES
   tools/a2mba-selftest.cpp
+  "${PROJECT_SOURCE_DIR}/lib/Context.cpp"
   "${PROJECT_SOURCE_DIR}/lib/Modular.cpp"
   "${PROJECT_SOURCE_DIR}/lib/Random.cpp"
 )
@@ -7,6 +8,18 @@ set(A2MBA_SELFTEST_SOURCES
 add_executable(a2mba-selftest ${A2MBA_SELFTEST_SOURCES})
 target_compile_features(a2mba-selftest PRIVATE cxx_std_20)
 target_compile_options(a2mba-selftest PRIVATE ${LLVM_DEFINITIONS_LIST})
+if(MSVC)
+  target_compile_options(a2mba-selftest PRIVATE /UNDEBUG)
+else()
+  target_compile_options(a2mba-selftest PRIVATE -UNDEBUG)
+endif()
+if(NOT LLVM_ENABLE_RTTI)
+  if(MSVC)
+    target_compile_options(a2mba-selftest PRIVATE /GR-)
+  else()
+    target_compile_options(a2mba-selftest PRIVATE -fno-rtti)
+  endif()
+endif()
 target_include_directories(a2mba-selftest
   PRIVATE "${PROJECT_SOURCE_DIR}/include"
 )

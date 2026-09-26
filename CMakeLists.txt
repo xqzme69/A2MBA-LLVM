@@ -4,7 +4,7 @@ project(
   A2MBA
   VERSION 0.1.0
   DESCRIPTION "LLVM 21 pass plugin for A2MBA transformations"
-  LANGUAGES CXX
+  LANGUAGES C CXX
 )
 
 option(A2MBA_BUILD_TESTS "Build and register the A2MBA test suite" ON)
@@ -245,6 +245,7 @@ install(DIRECTORY docs
   FILES_MATCHING
   PATTERN "*.md"
   PATTERN "*.json"
+  PATTERN "*.jsonl"
   PATTERN "*.png"
 )
 

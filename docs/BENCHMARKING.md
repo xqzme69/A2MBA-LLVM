@@ -195,7 +195,7 @@ Z3 separately checked all 6,024 supported shift/mask/reconstruction combinations
 
 This is the old forced depth-one Context Trap experiment. It did not measure the current nonlinear envelope, a full `heavy` profile, architectural transforms, runtime, size, or manual analysis. It also used a different corpus from the authors' experiment.
 
-The [result manifest](results/context-trap-1000.json) records settings, counts, tool hashes, and SHA-256 hashes of local reports. The per-expression traces and external harness are not checked in, so CI does not rerun this experiment.
+The [1,000 expression pairs](results/context-trap-1000-expressions.jsonl) are available as JSONL. The [result manifest](results/context-trap-1000.json) records their SHA-256, settings, counts, and hashes of local tool reports. Per-expression tool traces and the external harness are not checked in, so CI does not rerun this experiment.
 
 ## Published prototype results
 
@@ -305,4 +305,4 @@ The plain build disables function selection even if the shell has `A2MBA_OPTIONS
 
 Before expanding shared DAGs into trees, every mode applies `--max-flat-nodes`; zero turns flat export off. Records always keep the DAG. `flat-expressions.jsonl`, `promba-flat.c`, `gamba.txt`, and `cobra.txt` contain only expressions that fit. The C export keeps unsigned constants and typed arithmetic right shifts. The generic export rewrites arithmetic right shift with logical shifts and a sign-bit bias, then checks the node limit on that form. No flat export means the harness hit its limit, not that a simplifier failed.
 
-GAMBA, ProMBA, CoBRA, MBA-Blast, and symbolic-execution tools are not bundled. To repeat an external-tool run, pin revisions and resource limits, check parser and bit-vector conventions against the exported input, and use an independent equivalence oracle. This repository contains aggregate results and hashes, not the external harness or raw corpus.
+GAMBA, ProMBA, CoBRA, MBA-Blast, and symbolic-execution tools are not bundled. To repeat an external-tool run, pin revisions and resource limits, check parser and bit-vector conventions against the exported input, and use an independent equivalence oracle. Only the historical Context Trap corpus is checked in; the external harness and other raw corpora are not.

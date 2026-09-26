@@ -4,7 +4,7 @@
 
 - CMake 3.24 or newer.
 - LLVM and Clang 21.x development files. Other LLVM majors are rejected at configure time and by the wrapper.
-- A C++20 compiler compatible with the selected LLVM build.
+- C and C++20 compilers compatible with the selected LLVM build.
 - Python 3.9 or newer for rule generation, `a2mba-clang`, validation helpers, and tests.
 - Z3 for build-time verification of the hybrid rule table. The pinned `z3-solver` package satisfies this requirement.
 - An x86-64 Linux or Windows target for architectural transforms.

@@ -27,7 +27,9 @@ A2MBAContext::nextModularPair(unsigned bitWidth) {
       return randomValue.takeError();
     }
 
-    llvm::APInt constant(bitWidth, *randomValue);
+    const std::uint64_t value =
+        bitWidth == 32 ? static_cast<std::uint32_t>(*randomValue) : *randomValue;
+    llvm::APInt constant(bitWidth, value);
     constant.setBit(0);
     if (constant.isOne() || !usedConstants.insert(constant.getZExtValue()).second) {
       continue;

@@ -74,6 +74,7 @@
     "failures": 0
   },
   "artifact_sha256": {
+    "expressions_jsonl": "05c5bd13e884bddb42d994550958ab0ea1bad6ebf5bba17cb6e3175b8ab30e12",
     "plugin": "5cea51dd5651673eec713852abac09e4f7b6026d8220b303dbfd860a9b8c7577",
     "promba": "90c6379de34aaa194995306b83cfad3e4accedfcafed9a8124c332da06fcabb3",
     "sygus_bridge": "3dc16601168440b88da9d72d001fc77028339124b9be639c3ad0c52ac1e4a729",

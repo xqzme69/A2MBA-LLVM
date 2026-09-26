@@ -1,3 +1,8 @@
+#ifdef NDEBUG
+#error "a2mba-selftest must be built with assertions enabled"
+#endif
+
+#include "a2mba/Context.h"
 #include "a2mba/Modular.h"
 #include "a2mba/Random.h"
 
@@ -8,6 +13,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <initializer_list>
 #include <utility>
 
 namespace {
@@ -49,11 +55,26 @@ void testModularArithmetic() {
   for (unsigned index = 0; index != 64; ++index) {
     const unsigned bitWidth = index % 2 == 0 ? 32 : 64;
     const std::uint64_t raw = unwrapOrExit(samples.next64(), "modular inverse sample");
-    const llvm::APInt oddValue(bitWidth, raw | 1);
+    const std::uint64_t value = bitWidth == 32 ? static_cast<std::uint32_t>(raw) : raw;
+    const llvm::APInt oddValue(bitWidth, value | 1);
     const llvm::APInt oddInverse =
         unwrapOrExit(a2mba::modularInverseOdd(oddValue), "sample modular inverse");
     require(a2mba::isModularInverse(oddValue, oddInverse),
             "generated odd value failed modular inverse validation");
+  }
+}
+
+void testModularPairs() {
+  a2mba::Config config;
+  config.seed = 1;
+  a2mba::A2MBAContext context(std::move(config));
+  for (unsigned bitWidth : {32U, 64U}) {
+    for (unsigned index = 0; index != 32; ++index) {
+      const auto pair = unwrapOrExit(context.nextModularPair(bitWidth), "modular pair");
+      require(pair.first.getBitWidth() == bitWidth, "modular pair has the wrong width");
+      require(a2mba::isModularInverse(pair.first, pair.second),
+              "modular pair failed inverse validation");
+    }
   }
 }
 
@@ -89,6 +110,7 @@ void testDeterministicRandomness() {
 
 int main() {
   testModularArithmetic();
+  testModularPairs();
   testDeterministicRandomness();
   return EXIT_SUCCESS;
 }
