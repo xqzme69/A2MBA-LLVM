@@ -191,6 +191,14 @@ llvm::Expected<Config> Config::loadFromEnvironment() {
       continue;
     }
 
+    if (key == "flag-vm") {
+      auto enabled = parseBoolean(value, key);
+      if (!enabled)
+        return enabled.takeError();
+      config.flagVM = *enabled;
+      continue;
+    }
+
     if (key == "seed") {
       auto seed = parseSeed(value);
       if (!seed)
@@ -268,6 +276,12 @@ llvm::Expected<Config> Config::loadFromEnvironment() {
   if (config.hybridMode == HybridMode::Off && config.hybridRegion != HybridRegionMode::None) {
     return llvm::createStringError(llvm::errc::invalid_argument,
                                    "hybrid-region requires hybrid=ir or hybrid=native");
+  }
+
+  if (config.flagVM && (config.hybridMode != HybridMode::NativeRegisters ||
+                        config.hybridRegion != HybridRegionMode::Stateful)) {
+    return llvm::createStringError(llvm::errc::invalid_argument,
+                                   "flag-vm requires hybrid=native and hybrid-region=stateful");
   }
 
   return config;

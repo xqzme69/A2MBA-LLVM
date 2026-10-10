@@ -2,6 +2,8 @@
 ; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=904;functions=regex:^stateful_native_chain$;hybrid=native;hybrid-region=stateful;hybrid-layers=none;probability=100;depth=8;stats=true" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=STATS
 ; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=904;functions=regex:^stateful_native_chain$;hybrid=native;hybrid-region=stateful;hybrid-layers=none;probability=100;depth=8" %a2mba_opt -passes=a2mba -S "%s" -o - | %FileCheck "%s" --check-prefix=IR
 ; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=904;functions=regex:^stateful_native_chain$;hybrid=native;hybrid-region=stateful;hybrid-layers=none;probability=100;depth=8" %a2mba_opt -passes=a2mba "%s" -o - | %llc -mtriple=x86_64-unknown-linux-gnu -O0 -o - | %FileCheck "%s" --check-prefix=ASM
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=904;functions=regex:^stateful_native_chain$;hybrid=native;hybrid-region=stateful;flag-vm=true;hybrid-layers=none;probability=100;depth=8" %a2mba_opt -passes=a2mba,verify -S "%s" -o - | %FileCheck "%s" --check-prefix=FLAG-IR
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=904;functions=regex:^stateful_native_chain$;hybrid=native;hybrid-region=stateful;flag-vm=true;hybrid-layers=none;probability=100;depth=8" %a2mba_opt -passes=a2mba,verify "%s" -o - | %llc -mtriple=x86_64-unknown-linux-gnu -O3 -o - | %FileCheck "%s" --check-prefix=FLAG-ASM
 
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -26,3 +28,11 @@ entry:
 
 ; ASM-LABEL: stateful_native_chain:
 ; ASM: {{(mov|add|sub|imul|and|or|xor|not|neg)}}q
+
+; FLAG-IR-LABEL: define i64 @stateful_native_chain
+; FLAG-IR: %a2mba.flagvm = call { i64, i64 } asm
+; FLAG-IR: %a2mba.region.flag.mask = sub i64 0, %a2mba.flagvm.flag
+; FLAG-IR: %a2mba.region.flag.selected = and i64 %a2mba.region.flag.mask
+; FLAG-ASM-LABEL: stateful_native_chain:
+; FLAG-ASM: #APP
+; FLAG-ASM: set{{(ne|s|ns)}}

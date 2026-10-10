@@ -38,6 +38,11 @@
 ; RUN: "%t.native-layered.exe"
 ; RUN: %clang -O3 "%t.native-layered.ll" -o "%t.native-layered-o3.exe"
 ; RUN: "%t.native-layered-o3.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=917;functions=regex:^candidate_.*$;hybrid=native;hybrid-region=stateful;flag-vm=true;hybrid-layers=context-random;probability=100;stats=true" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba,verify -S "%s" -o "%t.flag-vm.ll" 2>&1 | %FileCheck "%s" --check-prefix=STATS
+; RUN: %clang -O0 "%t.flag-vm.ll" -o "%t.flag-vm.exe"
+; RUN: "%t.flag-vm.exe"
+; RUN: %clang -O3 "%t.flag-vm.ll" -o "%t.flag-vm-o3.exe"
+; RUN: "%t.flag-vm-o3.exe"
 
 ; STATS: stateful regions: 6
 

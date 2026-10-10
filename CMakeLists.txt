@@ -159,6 +159,7 @@ set(A2MBA_PASS_SOURCES
   lib/Modular.cpp
   lib/AAMBA.cpp
   lib/AGT.cpp
+  lib/FlagVM.cpp
   lib/Hybrid.cpp
   lib/Metadata.cpp
   lib/PassRegistration.cpp

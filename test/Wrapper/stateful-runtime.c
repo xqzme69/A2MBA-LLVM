@@ -3,6 +3,8 @@
 // RUN: "%t.ir.exe"
 // RUN: %a2mba_wrapper --level heavy --seed 912 --hybrid native --hybrid-region stateful --hybrid-layers context-random --stats -I"%S/../../sdk" -O3 "%s" -o "%t.native.exe" 2>&1 | %FileCheck "%s" --check-prefix=WRAPPER-NATIVE
 // RUN: "%t.native.exe"
+// RUN: %a2mba_wrapper --level heavy --seed 913 --hybrid native --hybrid-region stateful --flag-vm --hybrid-layers context-random --stats -I"%S/../../sdk" -O3 "%s" -o "%t.flag-vm.exe" 2>&1 | %FileCheck "%s" --check-prefix=WRAPPER-NATIVE
+// RUN: "%t.flag-vm.exe"
 
 // WRAPPER-IR: hybrid IR: 4
 // WRAPPER-IR: hybrid native: 0

@@ -20,6 +20,10 @@
 ; RUN: not env A2MBA_OPTIONS="hybrid=ir;hybrid-layers=context-adc;transform=sbb" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-LAYERS-TRANSFORM
 ; RUN: not env A2MBA_OPTIONS="hybrid-region=stateful" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-REGION-REQUIRES-HYBRID
 ; RUN: not env A2MBA_OPTIONS="hybrid=ir;hybrid-region=unknown" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=HYBRID-REGION
+; RUN: not env A2MBA_OPTIONS="flag-vm=perhaps" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=FLAG-VM-VALUE
+; RUN: not env A2MBA_OPTIONS="flag-vm=true" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=FLAG-VM-MODE
+; RUN: not env A2MBA_OPTIONS="hybrid=native;flag-vm=true" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=FLAG-VM-MODE
+; RUN: not env A2MBA_OPTIONS="hybrid=ir;hybrid-region=stateful;flag-vm=true" %a2mba_opt -passes=a2mba -disable-output "%s" 2>&1 | %FileCheck "%s" --check-prefix=FLAG-VM-MODE
 
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -46,3 +50,5 @@ entry:
 ; HYBRID-LAYERS-TRANSFORM: hybrid-layers cannot be combined with an explicit transform
 ; HYBRID-REGION-REQUIRES-HYBRID: hybrid-region requires hybrid=ir or hybrid=native
 ; HYBRID-REGION: invalid A2MBA option hybrid-region=unknown
+; FLAG-VM-VALUE: flag-vm expects true or false
+; FLAG-VM-MODE: flag-vm requires hybrid=native and hybrid-region=stateful

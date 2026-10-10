@@ -1,0 +1,5 @@
+# REQUIRES: clang, host-executable, x86-registered-target
+# RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=909;functions=regex:^candidate_stateful.*$;hybrid=native;hybrid-region=stateful;flag-vm=true;hybrid-layers=none;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba,verify -S "%S/stateful-region.ll" -o "%t.909.ll"
+# RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=913;functions=regex:^candidate_stateful.*$;hybrid=native;hybrid-region=stateful;flag-vm=true;hybrid-layers=none;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba,verify -S "%S/stateful-region.ll" -o "%t.913.ll"
+# RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=922;functions=regex:^candidate_stateful.*$;hybrid=native;hybrid-region=stateful;flag-vm=true;hybrid-layers=none;probability=100;depth=8" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba,verify -S "%S/stateful-region.ll" -o "%t.922.ll"
+# RUN: %python "%S/../tools/check_flag_vm.py" --clang %clang "%t.909.ll" "%t.913.ll" "%t.922.ll"

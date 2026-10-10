@@ -69,6 +69,7 @@ python tools/a2mba-clang.py --doctor --clang clang-21 --plugin /path/to/A2MBA.so
 --level light|balanced|medium|heavy
 --hybrid off|ir|native
 --hybrid-region none|stateful
+--flag-vm
 --hybrid-layers none|profile|context-adc|context-sbb|context-random
 --seed UINT64
 --functions annotated|all|regex:<pattern>
@@ -104,6 +105,8 @@ build\bin\a2mba-opt.exe -passes=a2mba input.ll -S -o protected.ll
 `--hybrid ir` uses bounded equality saturation to replace a selected operation. `--hybrid native` lowers the chosen expression into a register-only x86-64 assembly block. Both still pass through the nonlinear envelope. `--hybrid-layers` adds Context Trap and ADC/SBB outside it; `none` turns off those outer layers only. Hybrid and layer options are off by default.
 
 `--hybrid-region stateful` protects a straight-line chain as one unit. Each encoded value updates the state used by the next operation; only the region exit exposes a decoded result. It requires `--hybrid ir` or `--hybrid native` and is off by default. Resilience needs to be measured on whole regions, not isolated expressions.
+
+`--flag-vm` requires `--hybrid native --hybrid-region stateful`. Each site gets its own straight-line x86 block that derives one of CF, PF, AF, ZF, SF, or OF from the carried state and mixes the bit into the next state. The VM bytecode is lowered at build time; there is no runtime dispatcher.
 
 The authors specify the depth ranges for `light`, `medium`, and `heavy`, but not these probabilities. `balanced` is also our preset:
 

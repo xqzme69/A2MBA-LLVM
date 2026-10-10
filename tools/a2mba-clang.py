@@ -135,6 +135,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="encode eligible straight-line hybrid regions with carried state",
     )
     parser.add_argument(
+        "--flag-vm",
+        action="store_true",
+        help="mix per-site native flag programs into stateful hybrid regions",
+    )
+    parser.add_argument(
         "--seed", type=parse_seed, help="deterministic unsigned 64-bit seed"
     )
     parser.add_argument("--functions", type=parse_functions, default="annotated")
@@ -387,6 +392,7 @@ def make_options(arguments: argparse.Namespace) -> str:
         f"hybrid={arguments.hybrid}",
         f"hybrid-layers={arguments.hybrid_layers}",
         f"hybrid-region={arguments.hybrid_region}",
+        f"flag-vm={'true' if arguments.flag_vm else 'false'}",
         f"functions={arguments.functions}",
         f"stats={'true' if arguments.stats else 'false'}",
     ]

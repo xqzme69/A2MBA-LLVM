@@ -1,5 +1,6 @@
 #include "a2mba/A2MBA.h"
 
+#include "FlagVM.h"
 #include "Hybrid.h"
 #include "a2mba/AAMBA.h"
 #include "a2mba/AGT.h"
@@ -734,6 +735,21 @@ llvm::Value *createStateTransition(llvm::IRBuilderBase &builder, llvm::Value &st
   return mark(builder.CreateAdd(product, &salt, "a2mba.region.state.next"));
 }
 
+llvm::Value *createFlagStateTransition(llvm::IRBuilderBase &builder, llvm::Value &state,
+                                       llvm::Value &value, llvm::Value &contextValue,
+                                       llvm::Value &salt, std::uint64_t siteSeed) {
+  const FlagVMResult vm = takeOrFatal(emitFlagVM(builder, state, value, siteSeed));
+  auto *zero = llvm::ConstantInt::get(state.getType(), 0);
+  auto *one = llvm::ConstantInt::get(state.getType(), 1);
+  auto *mask = mark(builder.CreateSub(zero, vm.flag, "a2mba.region.flag.mask"));
+  auto *context = mark(builder.CreateXor(&state, &contextValue, "a2mba.region.state.context"));
+  auto *selected = mark(builder.CreateAnd(mask, context, "a2mba.region.flag.selected"));
+  auto *mixed = mark(builder.CreateXor(vm.sum, selected, "a2mba.region.state.mix"));
+  auto *oddRight = mark(builder.CreateOr(context, one, "a2mba.region.state.multiplier"));
+  auto *product = mark(builder.CreateMul(mixed, oddRight, "a2mba.region.state.product"));
+  return mark(builder.CreateAdd(product, &salt, "a2mba.region.state.next"));
+}
+
 EncodedValue encodeStatefulValue(llvm::IRBuilderBase &builder, llvm::Value &source,
                                  llvm::Value &value, llvm::Value &state, llvm::Value &left,
                                  llvm::Value &right,
@@ -804,15 +820,17 @@ void emitStatefulRegion(const StatefulRegionPlan &planned, A2MBAContext &context
         builder, operation, transform.hybrid->base, *left, *right, transform.hybrid->layers));
     recordHybridPlanStatistics(transform, context);
 
-    llvm::Value *nextState = nullptr;
-    if (index + 1 == planned.transforms.size()) {
-      nextState = createStateTransition(builder, *state, *replacement, *right, *stateSaltValue);
-    } else {
+    llvm::Value *transitionSalt = stateSaltValue;
+    if (index + 1 != planned.transforms.size()) {
       const std::uint64_t stepSalt =
           stateSalt ^ (0x9e3779b97f4a7c15ULL * static_cast<std::uint64_t>(index + 1));
-      auto *stepSaltValue = llvm::ConstantInt::get(type, stepSalt);
-      nextState = createStateTransition(builder, *state, *replacement, *right, *stepSaltValue);
+      transitionSalt = llvm::ConstantInt::get(type, stepSalt);
     }
+    llvm::Value *nextState =
+        context.config.flagVM
+            ? createFlagStateTransition(builder, *state, *replacement, *right, *transitionSalt,
+                                        takeOrFatal(context.random.next64()))
+            : createStateTransition(builder, *state, *replacement, *right, *transitionSalt);
     encoded.push_back(encodeStatefulValue(builder, operation, *replacement, *nextState, *left,
                                           *right, transform.hybrid->layers.nonlinear));
     state = nextState;

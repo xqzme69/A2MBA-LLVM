@@ -76,6 +76,7 @@ struct Config {
   std::optional<unsigned> forcedDepth;
   std::optional<unsigned> forcedProbability;
   std::string functionPattern;
+  bool flagVM = false;
   bool printStatistics = false;
   bool printDiagnostics = false;
 

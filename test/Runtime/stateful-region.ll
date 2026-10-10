@@ -19,6 +19,14 @@
 ; RUN: "%t.native-layered.exe"
 ; RUN: %clang -O3 "%t.native-layered.ll" -o "%t.native-layered-o3.exe"
 ; RUN: "%t.native-layered-o3.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=909;functions=regex:^candidate_stateful.*$;hybrid=native;hybrid-region=stateful;flag-vm=true;hybrid-layers=context-random;probability=100;depth=8;stats=true" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba,verify -S "%s" -o "%t.flag-vm.ll" 2>&1 | %FileCheck "%s" --check-prefix=NATIVE-STATS
+; RUN: %clang -O0 "%t.flag-vm.ll" -o "%t.flag-vm.exe"
+; RUN: "%t.flag-vm.exe"
+; RUN: %clang -O3 "%t.flag-vm.ll" -o "%t.flag-vm-o3.exe"
+; RUN: "%t.flag-vm-o3.exe"
+; RUN: env A2MBA_OPTIONS="mode=verified;level=medium;seed=913;functions=regex:^candidate_stateful.*$;hybrid=native;hybrid-region=stateful;flag-vm=true;hybrid-layers=none;probability=100;depth=8;stats=true" %a2mba_opt -mtriple=%a2mba_host_triple -passes=a2mba,verify -S "%s" -o "%t.flag-vm-adc.ll" 2>&1 | %FileCheck "%s" --check-prefix=NATIVE-STATS
+; RUN: %clang -O3 "%t.flag-vm-adc.ll" -o "%t.flag-vm-adc.exe"
+; RUN: "%t.flag-vm-adc.exe"
 
 ; IR-STATS: hybrid IR: 18
 ; IR-STATS: hybrid native: 0
