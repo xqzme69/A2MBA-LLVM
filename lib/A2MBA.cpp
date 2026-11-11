@@ -1,5 +1,6 @@
 #include "a2mba/A2MBA.h"
 
+#include "CoordinateRegion.h"
 #include "FlagVM.h"
 #include "Hybrid.h"
 #include "a2mba/AAMBA.h"
@@ -33,12 +34,6 @@
 
 namespace a2mba {
 namespace {
-
-struct HybridComposition {
-  hybrid::Plan base;
-  hybrid::Layers layers;
-  HybridMode mode;
-};
 
 struct TransformPlan {
   llvm::BinaryOperator *operation;
@@ -330,6 +325,8 @@ hybrid::Layers chooseHybridLayers(llvm::BinaryOperator &operation, const hybrid:
   if (context.config.hybridLayers != HybridLayerMode::Profile) {
     addHybridContextLayer(layers, plan, context.config.hybridMode,
                           operation.getType()->getIntegerBitWidth(), context.random);
+    if (context.config.hybridLayers == HybridLayerMode::Context)
+      return layers;
     TransformKind architectural = TransformKind::Adc;
     if (context.config.hybridLayers == HybridLayerMode::ContextSbb) {
       architectural = TransformKind::Sbb;
@@ -881,6 +878,12 @@ bool transformStatefulRegions(llvm::Function &function, A2MBAContext &context) {
 }
 
 bool transformFunction(llvm::Function &function, A2MBAContext &context) {
+  if (context.config.hybridRegion == HybridRegionMode::RotatedCore) {
+    bool changed = takeOrFatal(transformCoordinateRegions(function, context));
+    if (changed)
+      markProtected(function);
+    return changed;
+  }
   bool changed = transformStatefulRegions(function, context);
   llvm::SmallVector<llvm::Instruction *, 64> originalInstructions;
   for (llvm::Instruction &instruction : llvm::instructions(function)) {
@@ -919,6 +922,15 @@ bool transformFunction(llvm::Function &function, A2MBAContext &context) {
 }
 
 } // namespace
+
+std::optional<HybridComposition> planCoordinateRoot(llvm::BinaryOperator &operation,
+                                                    A2MBAContext &context) {
+  auto plan = planStatefulHybridTransform(operation, context, context.config.profile());
+  if (!plan)
+    return std::nullopt;
+  recordHybridPlanStatistics(*plan, context);
+  return std::move(plan->hybrid);
+}
 
 llvm::PreservedAnalyses A2MBAPass::run(llvm::Module &module, llvm::ModuleAnalysisManager &) {
   if (isModuleProcessed(module)) {

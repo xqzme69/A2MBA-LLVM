@@ -76,6 +76,8 @@ llvm::Expected<HybridLayerMode> parseHybridLayerMode(llvm::StringRef value) {
     return HybridLayerMode::None;
   if (value == "profile")
     return HybridLayerMode::Profile;
+  if (value == "context")
+    return HybridLayerMode::Context;
   if (value == "context-adc")
     return HybridLayerMode::ContextAdc;
   if (value == "context-sbb")
@@ -90,6 +92,8 @@ llvm::Expected<HybridRegionMode> parseHybridRegionMode(llvm::StringRef value) {
     return HybridRegionMode::None;
   if (value == "stateful")
     return HybridRegionMode::Stateful;
+  if (value == "rotated-core")
+    return HybridRegionMode::RotatedCore;
   return invalidValue("hybrid-region", value);
 }
 
@@ -278,6 +282,12 @@ llvm::Expected<Config> Config::loadFromEnvironment() {
                                    "hybrid-region requires hybrid=ir or hybrid=native");
   }
 
+  if (config.hybridRegion == HybridRegionMode::RotatedCore &&
+      (config.hybridMode != HybridMode::PureIR || config.forcedDepth)) {
+    return llvm::createStringError(llvm::errc::invalid_argument,
+                                   "rotated-core requires hybrid=ir and default depth");
+  }
+
   if (config.flagVM && (config.hybridMode != HybridMode::NativeRegisters ||
                         config.hybridRegion != HybridRegionMode::Stateful)) {
     return llvm::createStringError(llvm::errc::invalid_argument,
@@ -356,6 +366,8 @@ llvm::StringRef toString(HybridLayerMode mode) {
     return "none";
   case HybridLayerMode::Profile:
     return "profile";
+  case HybridLayerMode::Context:
+    return "context";
   case HybridLayerMode::ContextAdc:
     return "context-adc";
   case HybridLayerMode::ContextSbb:
@@ -370,6 +382,8 @@ llvm::StringRef toString(HybridRegionMode mode) {
   switch (mode) {
   case HybridRegionMode::None:
     return "none";
+  case HybridRegionMode::RotatedCore:
+    return "rotated-core";
   case HybridRegionMode::Stateful:
     return "stateful";
   }

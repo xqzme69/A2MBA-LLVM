@@ -150,7 +150,19 @@ endfunction()
 
 a2mba_enable_sanitizers(A2MBAHybridCore)
 
+set(A2MBA_COORDINATE_RULES "${A2MBA_HYBRID_GENERATED_DIR}/CoordinateRules.inc")
+add_custom_command(
+  OUTPUT "${A2MBA_COORDINATE_RULES}"
+  COMMAND ${Python3_EXECUTABLE} "${PROJECT_SOURCE_DIR}/scripts/verify_coordinate_rules.py"
+    "${A2MBA_HYBRID_SOURCE_DIR}/coordinates.json" "${A2MBA_COORDINATE_RULES}"
+  DEPENDS lib/HybridCore/coordinates.json scripts/verify_coordinate_rules.py scripts/hybrid_smt.py
+  COMMENT "Proving coordinate rules before generating LLVM emitters"
+  VERBATIM
+)
+
 set(A2MBA_PASS_SOURCES
+  "${A2MBA_COORDINATE_RULES}"
+  lib/CoordinateRegion.cpp
   lib/A2MBA.cpp
   lib/Config.cpp
   lib/Context.cpp
@@ -197,6 +209,7 @@ target_compile_definitions(${A2MBA_MAIN_TARGET}
 target_include_directories(${A2MBA_MAIN_TARGET} PRIVATE
   "${PROJECT_SOURCE_DIR}/include"
   "${PROJECT_SOURCE_DIR}/lib"
+  "${A2MBA_HYBRID_GENERATED_DIR}"
 )
 target_include_directories(${A2MBA_MAIN_TARGET} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 target_link_libraries(${A2MBA_MAIN_TARGET} PRIVATE A2MBAHybridCore)

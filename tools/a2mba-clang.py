@@ -124,15 +124,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--hybrid-layers",
-        choices=("none", "profile", "context-adc", "context-sbb", "context-random"),
+        choices=(
+            "none",
+            "profile",
+            "context",
+            "context-adc",
+            "context-sbb",
+            "context-random",
+        ),
         default="none",
         help="compose ContextTrap and ADC/SBB around a hybrid expression",
     )
     parser.add_argument(
         "--hybrid-region",
-        choices=("none", "stateful"),
+        choices=("none", "stateful", "rotated-core"),
         default="none",
-        help="encode eligible straight-line hybrid regions with carried state",
+        help="select stateful chains or rotated arithmetic regions",
     )
     parser.add_argument(
         "--flag-vm",

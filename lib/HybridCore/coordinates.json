@@ -1,0 +1,14 @@
+{
+  "widths": [32, 64],
+  "rules": {
+    "packedRotatedAdd": {
+      "requires": "0 < shift < width and sum == a + b",
+      "steps": [
+        ["highA", "lshr", "a", "shift"], ["highB", "lshr", "b", "shift"],
+        ["high", "add", "highA", "highB"], ["carry", "lshr", "high", "back"],
+        ["upper", "shl", "high", "shift"], ["withCarry", "add", "sum", "carry"],
+        ["lower", "and", "withCarry", "mask"], ["result", "or", "upper", "lower"]
+      ]
+    }
+  }
+}

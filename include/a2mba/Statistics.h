@@ -27,6 +27,7 @@ struct Statistics {
   std::uint64_t hybridIRTransforms = 0;
   std::uint64_t hybridNativeTransforms = 0;
   std::uint64_t statefulRegions = 0;
+  std::uint64_t coordinateRegions = 0;
 
   void recordSkip(SkipReason reason);
   void print(llvm::raw_ostream &output) const;

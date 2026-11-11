@@ -61,10 +61,19 @@ def build_parser() -> argparse.ArgumentParser:
         default="balanced",
     )
     parser.add_argument("--hybrid", choices=("off", "ir", "native"), default="off")
-    parser.add_argument("--hybrid-region", choices=("none", "stateful"), default="none")
+    parser.add_argument(
+        "--hybrid-region", choices=("none", "stateful", "rotated-core"), default="none"
+    )
     parser.add_argument(
         "--hybrid-layers",
-        choices=("none", "profile", "context-adc", "context-sbb", "context-random"),
+        choices=(
+            "none",
+            "profile",
+            "context",
+            "context-adc",
+            "context-sbb",
+            "context-random",
+        ),
         default="none",
     )
     parser.add_argument("--functions", default="all")

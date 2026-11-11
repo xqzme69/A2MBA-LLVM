@@ -1,0 +1,1 @@
+# RUN: %python "%S/../tools/check_coordinate_rules.py"

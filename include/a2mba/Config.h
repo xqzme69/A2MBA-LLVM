@@ -36,6 +36,7 @@ enum class HybridMode {
 enum class HybridLayerMode {
   None,
   Profile,
+  Context,
   ContextAdc,
   ContextSbb,
   ContextRandom,
@@ -44,6 +45,7 @@ enum class HybridLayerMode {
 enum class HybridRegionMode {
   None,
   Stateful,
+  RotatedCore,
 };
 
 enum class TransformKind {
